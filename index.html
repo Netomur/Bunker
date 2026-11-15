@@ -388,7 +388,7 @@ function receiveSecureMessage(event){
  if(m.t==='s'){
   lastSt=Date.now();R=m.R;
   if(S.scr==='home')S.scr='room';
-  S.err='';NET.cloud='ok';render();
+  S.err=m.notice||'';NET.cloud='ok';render();
  }
 }
 function openSecureSocket(token){
