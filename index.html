@@ -169,7 +169,7 @@ const DEF={
  ]
 };
 const BUILTIN=[DEF];
-let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,hbt=null,bt=0,mt=null,lastSt=Date.now(),myV={},mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
+let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,hbt=null,bt=0,mt=null,netGeneration=0,lastSt=Date.now(),myV={},mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
 try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
@@ -324,7 +324,7 @@ const my=()=>{const v=R.votes?.[R.n]?.[uid];return v&&v!=='?'?v:myV[R.n]};
 const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
-window.__bunkerTestDebug=()=>({isHost,uid,rid,gm:R?.gm,hid:R?.hid,ban:R?.ban,player:R?.players?.[uid],status:R?.status});
+window.__bunkerTestDebug=()=>({isHost,uid,rid,gm:R?.gm,hid:R?.hid,ban:R?.ban,player:R?.players?.[uid],status:R?.status,name:S.name,error:S.err});
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
 function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}
@@ -336,7 +336,7 @@ function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players)
  K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
  const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{{const p=sp(pl[k][n%pl[k].length]);ch[id][k]={v:p.v+sfx(s,k),h:p.h,o:0}}})});
  upd({status:'play',chars:ch,story:pick(s.story),env:{size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])},phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))})}
-function closeNet(){clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
+function closeNet(){netGeneration++;clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
 const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
 const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:uid+':'+(++sn)})};
 function stepDown(nr){isHost=false;clearInterval(hbt);B.forEach(b=>{try{b.c.unsubscribe('bk26/'+rid+'/h')}catch(e){}});ls('bh',null);R=nr;S.note='Ведение партии перешло к другому игроку.';resend();render()}
@@ -362,11 +362,11 @@ function onMsg(m){
  else if(m.t==='start')doStart();
  else if(m.t==='rr'){mg(R,{chars:{[m.i]:{[m.k]:rollKey(m.k,m.i)}}});bc();render()}}
 function net(code,first){if(!window.mqtt){S.err='Не загрузилась библиотека связи: проверьте интернет и обновите страницу';render();return false}
- rid=code;
+ const generation=netGeneration;rid=code;
  B=BR.map(([n,u])=>{NET[n]='…';const c=mqtt.connect(u,{clientId:'bk'+uid+Math.random().toString(36).slice(2,6),connectTimeout:15000,reconnectPeriod:3000});
-  c.on('connect',()=>{NET[n]='ok';lastSt=Date.now();c.subscribe('bk26/'+code+'/s',{qos:1});if(isHost)c.subscribe('bk26/'+code+'/h',{qos:1});render();first&&first()});
-  c.on('close',()=>{NET[n]='✗';render()});c.on('error',()=>{NET[n]='✗'});
-  c.on('message',(t,p)=>{try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});clearInterval(mt);mt=setInterval(chk,5000);return true}
+  c.on('connect',()=>{if(generation!==netGeneration)return;NET[n]='ok';lastSt=Date.now();c.subscribe('bk26/'+code+'/s',{qos:1});if(isHost)c.subscribe('bk26/'+code+'/h',{qos:1});render();first&&first()});
+  c.on('close',()=>{if(generation!==netGeneration)return;NET[n]='✗';render()});c.on('error',()=>{if(generation!==netGeneration)return;NET[n]='✗'});
+  c.on('message',(t,p)=>{if(generation!==netGeneration)return;try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});clearInterval(mt);mt=setInterval(chk,5000);return true}
 function startHost(code,st){closeNet();isHost=true;R=st;S.scr='room';S.err='';if(!net(code,bc)){S.scr='home';isHost=false;R=null;render()}else{hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);render()}}
 function joinRoom(code){closeNet();R=null;if(!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(code)){S.err='Введите корректный шестизначный код комнаты';return render()}
  const j=()=>pub('h',{t:'join',uid,name:S.name.trim().slice(0,32),av:S.dc?.av||'',id:uid+':'+(++sn)});S.err='Подключаемся…';
