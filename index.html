@@ -80,11 +80,16 @@ th{font-weight:700;letter-spacing:.2px}
 .score-ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,var(--cd))}
 .score-bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 7%,var(--cd))}
 @media(max-width:640px){#app{padding:12px 10px 28px}.hero{border-radius:14px}.card{padding:14px}.home-headline{align-items:flex-start;flex-direction:column}.home-tools{width:100%}.env-grid{grid-template-columns:1fr}}
+
+/* Privacy and usage notice */
+.privacy-notice{margin:0 0 14px;padding:12px 15px;border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:13px;background:var(--c2);font-size:13px;line-height:1.45}
+.privacy-notice p{margin:5px 0;color:var(--mu)}
+.privacy-notice a{font-weight:650;color:var(--ac);text-decoration:underline;text-underline-offset:2px}
 </style></head><body><div id="app">Загрузка…</div>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" onerror="var s=document.createElement('script');s.src='mqtt.min.js';document.head.append(s)"></script>
 <script>
 const DISCORD_CLIENT_ID='1571591321150431262';
-const VER='15.11.2026';
+const VER='16.11.2026';
 const K=[['gender','Пол'],['race','Раса'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
 const DEF={
  id:'standard',
@@ -265,6 +270,10 @@ const RULES=`<div class=rl>
 <h3>Связь и приватность</h3>
 <p>Игра передаёт состояние через публичные MQTT-серверы по WebSocket. Нужен хотя бы один сервер, к которому подключились и вы, и хост. Строка «Серверы связи» показывает состояние подключений. Если связь пропала, попробуйте выйти из комнаты и зайти снова по тому же коду.</p>
 <p>Скрытые характеристики скрываются только в интерфейсе: копия состояния партии передаётся браузерам участников. Это не защищённое хранилище секретов — не используйте игру для передачи личных или конфиденциальных данных. Голоса текущего голосования не показываются остальным до его завершения ведущим.</p>
+<h3>Данные, конфиденциальность и использование</h3>
+<p>Это бесплатный неофициальный любительский проект. Автор не управляет отдельным сервером приложения или центральной базой данных игроков, но для сайта и сетевой игры используются сторонние сервисы: GitHub Pages, jsDelivr, Discord (по желанию) и публичные MQTT-брокеры. Через MQTT передаются сведения об участниках и игровое состояние. WSS шифрует соединение в пути, но не скрывает содержимое от оператора брокера; игровые сообщения не являются приватными.</p>
+<p>Не вводите реальные персональные данные, адреса, телефоны, пароли, документы, медицинские или финансовые сведения. Код комнаты не является паролем. Проект предоставляется бесплатно «как есть», без гарантии бесперебойной работы или сохранности данных. Эти условия не ограничивают права и ответственность, которые нельзя исключить по применимому законодательству.</p>
+<p><a href="https://github.com/Netomur/Bunker/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Полное уведомление о данных, конфиденциальности и использовании</a></p>
 </div>`;
 const info=()=>`<div class=card><button class=g data-a=back2>← Назад</button><h2>ℹ️ Правила и справка</h2><p class=mu>Версия ${VER}</p>${RULES}</div>`;
 function sett(){const P=['#c2571a','#d4a017','#2e8b57','#2a7fd4','#8e44ad','#d6336c'],B=(a,k,n,on)=>`<button class="${on?'':'g'}" data-a=${a} data-k=${k}>${n}</button>`;
@@ -394,11 +403,14 @@ function lobby(){const g=gm(),ids=Object.keys(R.players);
  <label>Сколько должно остаться в финале <input type=number min=1 value="${R.surv}" data-a=surv ${g?'':'disabled'}></label>
  <p class=mu>Набор: ${esc(R.set.name)}</p>${g?'<button data-a=start>Начать игру</button>':'<p>Ждём, пока ведущий начнёт…</p>'}</div>`}
 
+function privacyNotice(){return `<div class="privacy-notice" role="note"><b>Важно о данных и приватности</b><p>Не вводите реальные персональные сведения, пароли, документы, медицинские или финансовые данные. Игровые сообщения проходят через публичные сторонние MQTT-сервисы и не являются приватными.</p><a href="https://github.com/Netomur/Bunker/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Что хранится, куда передаются данные и какие действуют ограничения →</a></div>`}
+
 function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class=g data-a=leave>На главную</button></p>`;
  if(!R.players[uid])return `<div class=card><h3>Вас нет в списке игроков</h3><p>Возможно, ведущий исключил вас из комнаты.</p><button data-a=leave>На главную</button></div>`;
- return `<div class=top><b><span class=lg></span> Комната ${rid}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+(R.status==='lobby'?lobby():game())}
+ return `<div class=top><b><span class=lg></span> Комната ${rid}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+privacyNotice()+(R.status==='lobby'?lobby():game())}
 
 function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
+${privacyNotice()}
 <div class=card><h3>Создать комнату</h3><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${s.id}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
 <div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
 <div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
