@@ -273,11 +273,28 @@ function sett(){const P=['#c2571a','#d4a017','#2e8b57','#2a7fd4','#8e44ad','#d63
 <label>Размер текста в таблице</label><div>${[[12,'Мелкий'],[13,'Обычный'],[15,'Крупный']].map(([k,n])=>B('tf',k,n,(ST.tf||13)==k)).join('')}</div>
 <p><button class=g data-a=rst>Сбросить настройки</button></p></div>`}
 function showTip(e){const i=e.target.closest&&e.target.closest('.i');if(!i){tip.style.display='none';return}tip.textContent=i.dataset.h;tip.style.display='block';const r=i.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(innerWidth-tip.offsetWidth-8,r.left-20))+'px';tip.style.top=(r.bottom+6+tip.offsetHeight>innerHeight?r.top-tip.offsetHeight-6:r.bottom+6)+'px'}
-async function dcInit(){try{const t=new URLSearchParams(location.hash.slice(1)).get('access_token');
- if(t){history.replaceState(null,'',location.pathname+location.search);const u=await(await fetch('https://discord.com/api/users/@me',{headers:{Authorization:'Bearer '+t}})).json();
-  if(u.id)ls('bdc',{id:u.id,name:u.global_name||u.username,av:u.avatar?`https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/${Number((BigInt(u.id)>>22n)%6n)}.png`})}}
- catch(e){S.err='Не удалось войти через Discord (возможно, он недоступен без VPN). Можно ввести имя вручную.'}
- const d=ls('bdc');if(d&&d.id){S.dc=d;S.name=d.name}}
+async function dcInit(){
+ const params=new URLSearchParams(location.search),code=params.get('code'),state=params.get('state');
+ if(code){
+  const expected=sessionStorage.getItem('bunker-discord-state');
+  sessionStorage.removeItem('bunker-discord-state');
+  history.replaceState(null,'',location.pathname);
+  if(!expected||state!==expected){
+   S.err='Проверка авторизации Discord не пройдена. Можно продолжить с обычным именем.';
+  }else{
+   try{
+    const result=await apiPost('/api/discord',{code});
+    if(result.ok&&result.name){
+     S.dc={name:result.name,av:result.av||''};S.name=result.name;ls('bdc',S.dc);
+    }else S.err='Не удалось получить профиль Discord. Можно ввести имя вручную.';
+   }catch(e){S.err=(e.message||'Не удалось войти через Discord')+'. Можно ввести имя вручную.'}
+  }
+ }
+ const d=ls('bdc');
+ if(d&&d.name){
+  S.dc={name:d.name,av:d.av||''};S.name=d.name;ls('bdc',S.dc);
+ }
+}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
@@ -502,7 +519,7 @@ case 'th':ST.th=k;saveST();render();break;
 case 'tf':ST.tf=+k;saveST();render();break;
 case 'rst':ST.ac='';ST.th='auto';ST.tf=13;saveST();render();break;
 case 'kick':upd({players:{[i]:null},ban:{[i]:true}});break;
-case 'dclogin':location.href='https://discord.com/oauth2/authorize?client_id='+DISCORD_CLIENT_ID+'&response_type=token&scope=identify&redirect_uri='+encodeURIComponent(location.origin+location.pathname);break;
+case 'dclogin':{const bytes=crypto.getRandomValues(new Uint8Array(24)),state=Array.from(bytes).map(x=>x.toString(16).padStart(2,'0')).join('');sessionStorage.setItem('bunker-discord-state',state);const redirect='https://netomur.github.io/Bunker/';location.href='https://discord.com/oauth2/authorize?client_id='+DISCORD_CLIENT_ID+'&response_type=code&scope=identify&redirect_uri='+encodeURIComponent(redirect)+'&state='+state;break}
 case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
 case 'gmp':upd({gmPlays:t.checked});break;
