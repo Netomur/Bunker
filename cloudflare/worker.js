@@ -14,6 +14,7 @@ const CHARACTER_KEYS = [
   "hobby", "fear", "inv1", "inv2", "extra", "spec"
 ];
 const PARAM_KEYS = ["gender", "body", "job", "hobby"];
+const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 const GAME_PATCH_KEYS = new Set([
   "players", "ban", "gm", "gmPlays", "surv", "status", "chars",
   "out", "votes", "vdone", "phase", "n", "ans"
