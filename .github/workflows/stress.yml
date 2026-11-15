@@ -1,0 +1,37 @@
+name: Isolated browser and MQTT stress tests
+
+on:
+  push:
+    branches:
+      - audit/fix-visual-and-logic-2026-11-16
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Check out isolated test branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install --no-save playwright ws
+          npx playwright install --with-deps chromium
+      - name: Run browser game simulations and public MQTT smoke test
+        run: node tests/stress.mjs
+      - name: Upload stress test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bunker-stress-report
+          path: bunker-stress-report.json
+          if-no-files-found: ignore
+          retention-days: 7
