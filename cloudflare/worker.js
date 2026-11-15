@@ -708,7 +708,7 @@ export class Room {
     }
 
     const allowed = Object.keys(patch);
-    if (!allowed.length || allowed.some(key => !["chars", "votes", "shown"].includes(key))) {
+    if (allowed.length !== 1 || allowed.some(key => !["chars", "votes"].includes(key))) {
       throw new Error("У участника нет прав на это действие.");
     }
     if (room.out?.[uid] && room.status !== "end") throw new Error("Выбывший игрок не может выполнять это действие.");
@@ -719,6 +719,9 @@ export class Room {
       }
       const fields = patch.chars[uid];
       if (!isObject(fields)) throw new Error("Некорректная карточка.");
+      if (room.status !== "end" && Object.keys(fields).length !== 1) {
+        throw new Error("За один ход можно раскрыть только одну карточку.");
+      }
       for (const key of Object.keys(fields)) {
         if (!CHARACTER_KEYS.includes(key) || !isObject(fields[key]) || Object.keys(fields[key]).some(x => x !== "o") || fields[key].o !== 1) {
           throw new Error("Можно только раскрывать собственные карточки.");
@@ -734,23 +737,11 @@ export class Room {
         }
         card.o = 1;
       }
-      if (room.status === "play" && room.phase === "reveal") {
+      if (room.status === "play" && room.phase === "reveal" && Object.keys(fields).some(key => key !== "spec")) {
         room.shown ||= {};
         room.shown[room.n] ||= {};
         room.shown[room.n][uid] = true;
       }
-    }
-
-    if (patch.shown) {
-      if (room.status !== "play" || room.phase !== "reveal" ||
-          !isObject(patch.shown) || Object.keys(patch.shown).length !== 1 ||
-          !patch.shown[room.n] || Object.keys(patch.shown[room.n]).length !== 1 ||
-          patch.shown[room.n][uid] !== true) {
-        throw new Error("Нельзя менять отметки раскрытия других игроков.");
-      }
-      room.shown ||= {};
-      room.shown[room.n] ||= {};
-      room.shown[room.n][uid] = true;
     }
 
     if (patch.votes) {
