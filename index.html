@@ -356,8 +356,9 @@ async function getTurnstileToken(){
   host.style.cssText='position:fixed;left:-10000px;top:-10000px;z-index:-1';
   document.body.append(host);
   let id=null,settled=false;
+  const timeout=setTimeout(()=>finish(new Error('Проверка Cloudflare Turnstile заняла слишком много времени. Попробуйте ещё раз.')),20000);
   const finish=(error,token)=>{
-   if(settled)return;settled=true;
+   if(settled)return;settled=true;clearTimeout(timeout);
    try{if(id!==null)window.turnstile.remove(id)}catch{}
    host.remove();
    error?reject(error):resolve(token);
