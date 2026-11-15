@@ -339,13 +339,13 @@ function closeNet(){clearInterval(jt);clearInterval(hbt);clearInterval(mt);clear
 const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
 const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:uid+':'+(++sn)})};
 function stepDown(nr){isHost=false;clearInterval(hbt);B.forEach(b=>{try{b.c.unsubscribe('bk26/'+rid+'/h')}catch(e){}});ls('bh',null);R=nr;S.note='Ведение партии перешло к другому игроку.';resend();render()}
-function takeover(){isHost=true;R.ep=(R.ep||0)+1;R.hid=uid;
+function takeover(){isHost=true;R.ep=(R.ep||0)+1;const previousHost=R.hid||R.host;if(R.gm===previousHost||!R.players[R.gm]||R.out?.[R.gm]){R.gm=uid;if(!R.gmPlays&&R.chars)delete R.chars[uid]}R.hid=uid;
  const bs=BUILTIN.find(x=>x.id===R.set?.bid);if(bs)R.set={...bs,bid:bs.id};
  if(R.phase==='vote'&&R.votes&&!R.vdone?.[R.n]){R.votes[R.n]={};if(myV[R.n])R.votes[R.n][uid]=myV[R.n]}
  B.forEach(b=>{try{b.c.connected&&b.c.subscribe('bk26/'+rid+'/h',{qos:1})}catch(e){}});
  clearInterval(hbt);hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);
  S.note='Прежний хост пропал: ведение партии перешло к вам. Не закрывайте эту вкладку.';bc();render()}
-function chk(){if(isHost||!R||!rid||!live())return;const r=Object.keys(R.players).filter(x=>x!==R.hid).sort().indexOf(uid);if(r<0)return;if(Date.now()-lastSt>45000+r*10000)takeover()}
+function chk(){if(isHost||!R||!rid||!live())return;const r=Object.keys(R.players).filter(x=>x!==R.hid&&!R.out?.[x]).sort().indexOf(uid);if(r<0)return;if(Date.now()-lastSt>45000+r*10000)takeover()}
 function onMsg(m){
  if(m.t==='err'){if(m.uid===uid){S.err=m.e;clearInterval(jt);render()}return}
  if(m.t==='s'){lastSt=Date.now();

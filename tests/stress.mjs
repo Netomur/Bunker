@@ -73,6 +73,7 @@ await new Promise((ok) => httpServer.listen(APP_PORT, HOST, ok));
    isolated topic namespace. A separate scenario probes the real WSS brokers. */
 const wss = new WebSocketServer({ host: HOST, port: BROKER_PORT });
 const sockets = new Set();
+const brokerEvents = [];
 wss.on('connection', (ws) => {
   const client = { ws, broker: '', subscriptions: new Set() };
   sockets.add(client);
@@ -94,6 +95,7 @@ wss.on('connection', (ws) => {
       return;
     }
     if (msg.type === 'publish' && typeof msg.topic === 'string') {
+      try { const parsed = JSON.parse(String(msg.payload ?? '')); if (parsed.t === 'join' || parsed.t === 'err') brokerEvents.push({ broker: client.broker, topic: msg.topic, messageType: parsed.t, uid: parsed.uid, error: parsed.e }); } catch {}
       const packet = JSON.stringify({ type: 'message', topic: msg.topic, payload: String(msg.payload ?? '') });
       for (const target of sockets) {
         if (target !== client && target.broker === client.broker &&
@@ -343,7 +345,18 @@ async function scenarioKickAndBan() {
     await click(kicked.page, 'button[data-a=leave]');
     await kicked.page.locator('#code').fill(code);
     await click(kicked.page, 'button[data-a=join]');
-    await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 15000);
+    await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 15000).catch(async (error) => {
+      const guestStored = await kicked.page.evaluate(() => {
+        let id = null; try { id = JSON.parse(localStorage.getItem('bu')); } catch {}
+        return { id, body: document.body.innerText };
+      });
+      const hostStored = await players[0].page.evaluate(() => {
+        let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
+        return { ban: saved?.R?.ban || null, players: saved?.R?.players || null };
+      });
+      console.log('[KICK DEBUG]', JSON.stringify({ guestStored, hostStored, brokerEvents: brokerEvents.slice(-30) }));
+      throw error;
+    });
     await closePlayers(players);
     record('kick and rejoin ban', 'PASS', { kickedPlayer: kicked.name, rejoin: 'rejected' });
   } catch (error) { await closePlayers(players); throw error; }
