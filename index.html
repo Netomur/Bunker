@@ -174,7 +174,7 @@ try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
 const BR=[['emqx','wss://broker.emqx.io:8084/mqtt'],['hivemq','wss://broker.hivemq.com:8884/mqtt'],['eclipse','wss://mqtt.eclipseprojects.io:443/mqtt'],['mosquitto','wss://test.mosquitto.org:8081/']];
-const mg=(a,b)=>{for(const k in b){const v=b[k];if(v===null){delete a[k];continue}if(v&&typeof v==='object'&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=='object')a[k]={};mg(a[k],v)}else a[k]=v}return a};
+const mg=(a,b)=>{if(!a||!b||typeof a!=='object'||typeof b!=='object')return a;for(const k of Object.keys(b)){if(k==='__proto__'||k==='prototype'||k==='constructor')continue;const v=b[k];if(v===null){delete a[k];continue}if(v&&typeof v==='object'&&!Array.isArray(v)){if(!Object.prototype.hasOwnProperty.call(a,k)||!a[k]||typeof a[k]!=='object'||Array.isArray(a[k]))a[k]={};mg(a[k],v)}else a[k]=v}return a};
 const $=document.getElementById('app');
 const tip=document.createElement('div');tip.id='tip';document.body.append(tip);
 const sp=t=>{const m=String(t).match(/^([\s\S]*?)\s*\[([\s\S]*)\]\s*$/);return m?{v:m[1].trim(),h:m[2].trim()}:{v:String(t).trim(),h:''}};
@@ -354,9 +354,9 @@ function onMsg(m){
   return}
  if(!isHost)return;
  if(m.id){if(seen.has(m.id))return;seen.add(m.id)}
- if(m.t==='join'){if(R.ban?.[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Ведущий исключил вас из комнаты'});return}
+ if(m.t==='join'){if(!/^(?:u[a-z0-9]{1,24}|d[0-9]{1,24})$/.test(m.uid||'')||typeof m.name!=='string'||!m.name.trim())return;if(R.ban?.[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Ведущий исключил вас из комнаты'});return}
   if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}
-  mg(R,{players:{[m.uid]:{name:m.name,av:m.av||''}}});bc();render()}
+  mg(R,{players:{[m.uid]:{name:m.name.trim().slice(0,32),av:m.av||''}}});bc();render()}
  else if(m.t==='u'){mg(R,m.d);bc();render()}
  else if(m.t==='start')doStart();
  else if(m.t==='rr'){mg(R,{chars:{[m.i]:{[m.k]:rollKey(m.k,m.i)}}});bc();render()}}
@@ -367,22 +367,22 @@ function net(code,first){if(!window.mqtt){S.err='Не загрузилась б�
   c.on('close',()=>{NET[n]='✗';render()});c.on('error',()=>{NET[n]='✗'});
   c.on('message',(t,p)=>{try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});clearInterval(mt);mt=setInterval(chk,5000);return true}
 function startHost(code,st){closeNet();isHost=true;R=st;S.scr='room';S.err='';if(!net(code,bc)){S.scr='home';isHost=false;R=null;render()}else{hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);render()}}
-function joinRoom(code){closeNet();R=null;if(!code){S.err='Введите код комнаты';return render()}
- const j=()=>pub('h',{t:'join',uid,name:S.name.trim(),av:S.dc?.av||'',id:uid+':'+(++sn)});S.err='Подключаемся…';
+function joinRoom(code){closeNet();R=null;if(!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(code)){S.err='Введите корректный шестизначный код комнаты';return render()}
+ const j=()=>pub('h',{t:'join',uid,name:S.name.trim().slice(0,32),av:S.dc?.av||'',id:uid+':'+(++sn)});S.err='Подключаемся…';
  if(!net(code,j))return;render();jt=setInterval(()=>{if(R)clearInterval(jt);else j()},3000);
  setTimeout(()=>{if(!R&&S.err==='Подключаемся…'){S.err='Нет ответа: комната не найдена или нет связи. Проверьте код и что хост онлайн.';render()}},30000)}
 function cell(id,k){const c=R.chars[id][k]||{v:'—',o:1},mine=id===uid,g=gm(),end=R.status==='end';let h,b='';
  if(c.o)h=`<b>${esc(c.v)}</b>`+(k==='spec'?(c.u?' ✔':' ⚡'):'');else if(mine||(g&&peek))h=`<span class=dim>${esc(c.v)}</span>`;else h='🔒';
  if(c.h&&(c.o||mine||(g&&peek)))h+=` <span class=i tabindex=0 data-h="${esc(c.h)}">ⓘ</span>`;
- if(mine&&!c.o&&!R.out[id]){if(k==='spec')b=`<br><button data-a=spec data-i="${id}">Активировать</button>`;else if(end||(R.phase==='reveal'&&!R.shown?.[R.n]?.[id]))b=`<br><button data-a=rev data-k=${k}>Открыть</button>`}
- if(g&&edit)b+=`<br><button class=g data-a=rr data-i="${id}" data-k=${k}>🎲</button><button class=g data-a=ed data-i="${id}" data-k=${k}>✎</button><button class=g data-a=sw data-i="${id}" data-k=${k}>⇄</button><button class=g data-a=tg data-i="${id}" data-k=${k}>👁</button>`;
+ if(mine&&!c.o&&!R.out[id]){if(k==='spec')b=`<br><button data-a=spec data-i="${esc(id)}">Активировать</button>`;else if(end||(R.phase==='reveal'&&!R.shown?.[R.n]?.[id]))b=`<br><button data-a=rev data-k=${k}>Открыть</button>`}
+ if(g&&edit)b+=`<br><button class=g data-a=rr data-i="${esc(id)}" data-k=${k}>🎲</button><button class=g data-a=ed data-i="${esc(id)}" data-k=${k}>✎</button><button class=g data-a=sw data-i="${esc(id)}" data-k=${k}>⇄</button><button class=g data-a=tg data-i="${esc(id)}" data-k=${k}>👁</button>`;
  return `<td class="${c.o?'op':'cl'}">${h}${b}</td>`}
 
 function table(){const ids=Object.keys(R.chars),g=gm(),vt=R.votes?.[R.n]||{},dn=R.vdone?.[R.n],mv=my();
  const rows=ids.map(id=>{const out=R.out[id],cnt=Object.values(vt).filter(x=>x===id).length;let a='';
-  if(R.status==='play'&&R.phase==='vote'&&!dn&&!out&&!R.out[uid]&&R.chars[uid]&&id!==uid)a+=`<button class="${mv===id?'on':''}" data-a=vote data-i="${id}">${mv===id?'✔ Ваш голос':'Голосовать'}</button>`;
+  if(R.status==='play'&&R.phase==='vote'&&!dn&&!out&&!R.out[uid]&&R.chars[uid]&&id!==uid)a+=`<button class="${mv===id?'on':''}" data-a=vote data-i="${esc(id)}">${mv===id?'✔ Ваш голос':'Голосовать'}</button>`;
   if(R.phase==='vote'&&!dn&&vt[id])a+='<br><span class=mu>✓ проголосовал</span>';
-  if(g)a+=out?`<button class=g data-a=back data-i="${id}">↩ Вернуть</button>`:`<button class=g data-a=out data-i="${id}">Выбыл</button>`;
+  if(g)a+=out?`<button class=g data-a=back data-i="${esc(id)}">↩ Вернуть</button>`:`<button class=g data-a=out data-i="${esc(id)}">Выбыл</button>`;
   const vs=dn?Object.keys(vt).filter(v=>vt[v]===id).map(v=>R.players[v]?.name).join(', '):'';
   return `<tr class="${out?'out':''}"><td>${av(R.players[id])}<b>${esc(R.players[id]?.name)}</b>${id===R.gm?' 🎙':''}${id===uid?' (вы)':''}${dn&&cnt?`<br>🗳 ${cnt} ← ${esc(vs)}`:''}</td>${K.map(([k])=>cell(id,k)).join('')}<td>${a}</td></tr>`}).join('');
  return `<div class=w><table><tr><th>Игрок</th>${K.map(k=>`<th>${k[1]}</th>`).join('')}<th></th></tr>${rows}</table></div>`}
@@ -407,30 +407,30 @@ function endPanel(g){
  ${done&&qs.length?`<div class="scorebox ${ok?'score-ok':'score-bad'}"><p class=v>${ok?'Выжившие справились!':'Выжившие не справились.'}</p><p><b>Итоговая оценка: ${score}%</b> (${earned} из ${total} весовых баллов).</p><p class=mu>Для выживания нужно набрать не менее 70%. Вопросы с приоритетом 10 являются критическими и обязательными.</p></div>${bad.length?`<p class=mu>Не выполнено: ${esc(bad.join('; '))}</p>`:''}`:''}</div>`}
 
 function game(){const g=gm(),end=R.status==='end';
- const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>`<div class=sp>⚡ <b>${esc(R.players[i].name)}</b> активирует способность: ${esc(R.chars[i].spec.v)} ${g?`<button data-a=done data-i="${i}">Выполнено</button>`:''}</div>`).join('');
+ const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>`<div class=sp>⚡ <b>${esc(R.players[i].name)}</b> активирует способность: ${esc(R.chars[i].spec.v)} ${g?`<button data-a=done data-i="${esc(i)}">Выполнено</button>`:''}</div>`).join('');
  return `<div class=card><b>Сюжет:</b> ${esc(R.story)}<div class=env-grid><div class=env-item><span>РАЗМЕР БУНКЕРА</span><b>${esc(R.env?.size||'—')}</b></div><div class=env-item><span>ПЛАНИРОВКА И ПОМЕЩЕНИЯ</span><b>${esc(R.env?.rooms||'—')}</b></div></div><span class=mu>Цель: выжить должны ${R.surv}</span></div>
  ${end?'':`<div class="card ban">${banner(g)}</div>`}${sp}
  ${g?`<p><label style="display:inline"><input type=checkbox data-a=peek ${peek?'checked':''}>Подсмотреть скрытое</label> <label style="display:inline"><input type=checkbox data-a=edit ${edit?'checked':''}>Режим правок (🎲 случайное, ✎ вручную, ⇄ обмен, 👁 открыть/скрыть)</label> ${end?'':'<button class=g data-a=fin>Завершить игру</button>'}</p>`:''}
  ${table()}${end?endPanel(g):''}`}
 
 function lobby(){const g=gm(),ids=Object.keys(R.players);
- return `<div class=card><h3>Игроки (${ids.length})</h3>${ids.map(i=>`<p class=pl>${av(R.players[i])}${esc(R.players[i].name)}${i===R.gm?' 🎙 ведущий':''} ${g&&i!==R.gm?`<button class=g data-a=setgm data-i="${i}">Сделать ведущим</button><button class=g data-a=kick data-i="${i}">Выгнать</button>`:''}</p>`).join('')}
- <p class=mu>Код комнаты <b>${rid}</b> — друзья вводят его на главной странице.</p>
+ return `<div class=card><h3>Игроки (${ids.length})</h3>${ids.map(i=>`<p class=pl>${av(R.players[i])}${esc(R.players[i].name)}${i===R.gm?' 🎙 ведущий':''} ${g&&i!==R.gm?`<button class=g data-a=setgm data-i="${esc(i)}">Сделать ведущим</button><button class=g data-a=kick data-i="${esc(i)}">Выгнать</button>`:''}</p>`).join('')}
+ <p class=mu>Код комнаты <b>${esc(rid)}</b> — друзья вводят его на главной странице.</p>
  <label><input type=checkbox data-a=gmp ${R.gmPlays?'checked':''} ${g?'':'disabled'}>Ведущий тоже играет</label>
- <label>Сколько должно остаться в финале <input type=number min=1 value="${R.surv}" data-a=surv ${g?'':'disabled'}></label>
+ <label>Сколько должно остаться в финале <input type=number min=1 value="${esc(R.surv)}" data-a=surv ${g?'':'disabled'}></label>
  <p class=mu>Набор: ${esc(R.set.name)}</p>${g?'<button data-a=start>Начать игру</button>':'<p>Ждём, пока ведущий начнёт…</p>'}</div>`}
 
 function privacyNotice(){return `<div class="privacy-notice" role="note"><b>Важно о данных и приватности</b><p>Не вводите реальные персональные сведения, пароли, документы, медицинские или финансовые данные. Игровые сообщения проходят через публичные сторонние MQTT-сервисы и не являются приватными.</p><a href="https://github.com/Netomur/Bunker/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Что хранится, куда передаются данные и какие действуют ограничения →</a></div>`}
 
 function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class=g data-a=leave>На главную</button></p>`;
  if(!R.players[uid])return `<div class=card><h3>Вас нет в списке игроков</h3><p>Возможно, ведущий исключил вас из комнаты.</p><button data-a=leave>На главную</button></div>`;
- return `<div class=top><b><span class=lg></span> Комната ${rid}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+privacyNotice()+(R.status==='lobby'?lobby():game())}
+ return `<div class=top><b><span class=lg></span> Комната ${esc(rid)}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+privacyNotice()+(R.status==='lobby'?lobby():game())}
 
-function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
+function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name maxlength=32 value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
 ${privacyNotice()}
-<div class=card><h3>Создать комнату</h3><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${s.id}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
-<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
-<div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
+<div class=card><h3>Создать комнату</h3><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
+<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 pattern="[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}" autocomplete=off style="text-transform:uppercase"><button data-a=join>Войти</button></div>
+<div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${esc(s.id)}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
 
 function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
 <label>Название<input id=e_name value="${esc(e.name)}"></label>
@@ -455,7 +455,7 @@ case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='hom
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
  const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:BUILTIN.some(x=>x.id===p)?p:'',name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
  const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
- startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim(),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
+ startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
  joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
 case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
