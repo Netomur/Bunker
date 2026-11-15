@@ -683,8 +683,11 @@ export class Room {
       await this.touch();
       await this.broadcast(room);
     } catch (error) {
-      ws.send(JSON.stringify({ t: "err", e: cleanText(error.message || "Действие отклонено.", 180) }));
-      ws.send(JSON.stringify({ t: "s", R: this.viewFor(room, uid) }));
+      ws.send(JSON.stringify({
+        t: "s",
+        R: this.viewFor(room, uid),
+        notice: cleanText(error.message || "Действие отклонено.", 180)
+      }));
     }
   }
 
