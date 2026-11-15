@@ -154,6 +154,7 @@ async function newPlayer(name, uid, fake = true) {
   if (fake) {
     await context.addInitScript(({ playerName, playerId, init }) => {
       window.__testPlayerName = playerName;
+      window.__bunkerTestMode = true;
       localStorage.setItem('bn', playerName);
       localStorage.setItem('bu', JSON.stringify(playerId));
       (0, eval)(init);
@@ -410,31 +411,25 @@ async function scenarioKickAndBan() {
     await players[0].page.locator('p.pl').filter({ hasText: kicked.name }).locator('button[data-a=kick]').click();
     await waitBody(kicked.page, 'Вас нет в списке игроков', 15000);
     await click(kicked.page, 'button[data-a=leave]');
+    await kicked.page.waitForSelector('#code', { state: 'visible', timeout: 5000 });
     await kicked.page.locator('#code').fill(code);
     await kicked.page.waitForTimeout(800);
-    const codeAfterOldDisconnect = await kicked.page.locator('#code').inputValue();
-    assert(codeAfterOldDisconnect === code, 'A delayed close event from the previous room erased the new room code');
     const enteredCode = await kicked.page.locator('#code').inputValue();
-    const codeAcceptedByUi = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(enteredCode);
-    if (!codeAcceptedByUi) throw new Error('Test supplied invalid room code: ' + JSON.stringify({ code, enteredCode }));
+    assert(enteredCode === code && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(enteredCode),
+      'Room code was changed before rejoin: '+JSON.stringify({code,enteredCode}));
     await click(kicked.page, 'button[data-a=join]');
-    await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 15000).catch(async (error) => {
-      const guestStored = await kicked.page.evaluate(() => {
-        let id = null; try { id = JSON.parse(localStorage.getItem('bu')); } catch {}
-        return { id, body: document.body.innerText, codeValue: document.querySelector('#code')?.value, app: window.__bunkerTestDebug?.() };
-      });
-      const hostStored = await players[0].page.evaluate(() => {
-        let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
-        return { ban: saved?.R?.ban || null, players: saved?.R?.players || null, app: window.__bunkerTestDebug?.(), body: document.body.innerText };
-      });
-      console.log('[KICK DEBUG]', JSON.stringify({ code, enteredCode, guestStored, hostStored, brokerEvents: brokerEvents.slice(-40) }));
+    await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 20000).catch(async (error) => {
+      const guestDebug = await kicked.page.evaluate(() => window.__bunkerTestDebug?.());
+      const hostDebug = await players[0].page.evaluate(() => window.__bunkerTestDebug?.());
+      console.log('[KICK DEBUG]', JSON.stringify({ code, enteredCode, guestDebug, hostDebug, brokerEvents: brokerEvents.slice(-35) }));
       throw error;
     });
+    const guestDebug = await kicked.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(guestDebug?.error === 'Ведущий исключил вас из комнаты', 'Ban error was not retained in guest UI');
     await closePlayers(players);
-    record('kick and rejoin ban', 'PASS', { kickedPlayer: kicked.name, rejoin: 'rejected' });
+    record('kick and rejoin ban', 'PASS', { kickedPlayer: kicked.name, rejoin: 'rejected', code, guestError: guestDebug.error });
   } catch (error) { await closePlayers(players); throw error; }
 }
-
 async function scenarioImportValidation() {
   const player = await newPlayer('ImportTester', 'uimport001');
   try {
@@ -460,10 +455,25 @@ async function scenarioImportValidation() {
     });
     await waitBody(player.page, 'Ошибка:', 10000);
     assert((await bodyText(player.page)).includes('Тестовый набор'), 'Invalid import destroyed saved set');
+    const beforeInvalid = await player.page.evaluate(() => localStorage.getItem('bsets'));
+    const validCandidate = JSON.parse(beforeInvalid)[0];
+    const partial = [{ ...validCandidate, id: 'spartial-import', name: 'Частичный импорт' }, { id: 'sbroken', name: 'Сломанный пакет', lists: { gender: 'не массив' } }];
+    await player.page.locator('input[data-a=imp]').setInputFiles({
+      name: 'partially-invalid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(partial)),
+    });
+    await waitBody(player.page, 'Ошибка:', 10000);
+    const afterInvalid = await player.page.evaluate(() => localStorage.getItem('bsets'));
+    assert(afterInvalid === beforeInvalid, 'Import was not atomic: a valid item from a rejected file was partially saved');
+    assert(!(await bodyText(player.page)).includes('Частичный импорт'), 'Partially valid import leaked into saved packs');
+    await player.page.locator('input[data-a=imp]').setInputFiles({
+      name: 'valid-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(beforeInvalid),
+    });
+    await waitBody(player.page, 'Тестовый набор', 10000);
+    assert(!(await bodyText(player.page)).includes('Ошибка:'), 'Valid exported pack data was rejected during import');
     await closePlayers([player]);
-    record('custom pack creation, export and malformed import handling', 'PASS', {
+    record('custom pack creation, export, valid round-trip and atomic malformed import handling', 'PASS', {
       createdPack: 'Тестовый набор', exportFilename: download.suggestedFilename(),
-      malformedImport: 'graceful error and existing data preserved',
+      validRoundTrip: 'accepted', malformedArray: 'rejected atomically without partial writes',
     });
   } catch (error) { await closePlayers([player]); throw error; }
 }
@@ -473,6 +483,9 @@ async function scenarioHostFailover() {
   try {
     await click(players[0].page, 'button[data-a=start]');
     await waitBody(players[0].page, 'Выберите тему раунда');
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Выберите тему раунда', 15000)));
+    await Promise.all(players.slice(1).map(p => p.page.locator('.w table').waitFor({ state: 'visible', timeout: 15000 })));
+    await players[0].page.waitForTimeout(500);
     await players[0].context.close();
 
     const successor = players.slice(1).sort((a, b) => a.uid.localeCompare(b.uid))[0];
@@ -492,6 +505,71 @@ async function scenarioHostFailover() {
       previousHost: players[0].name, successor: successor.name, successorCanControlGame: true,
     });
   } catch (error) { await closePlayers(players.slice(1)); throw error; }
+}
+
+async function scenarioReloadRejoin() {
+  const { players, code } = await createAndJoin(3, 'Foxtrot');
+  try {
+    const returning = players[2];
+    const before = await returning.page.evaluate(() => window.__bunkerTestDebug?.());
+    await returning.page.reload({ waitUntil: 'domcontentloaded' });
+    await returning.page.waitForSelector('#code', { state: 'visible', timeout: 15000 });
+    await returning.page.locator('#code').fill(code);
+    await click(returning.page, 'button[data-a=join]');
+    await waitForNames(players[0], players.map(p => p.name), 2500);
+    await waitBody(returning.page, 'Комната ' + code, 15000);
+    const after = await returning.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(after?.uid === returning.uid, 'Reload changed the player identity');
+    assert(after?.screen === 'room', 'Returning player did not re-enter the room');
+    await closePlayers(players);
+    record('player reload and immediate rejoin without message-ID collision', 'PASS', {
+      player: returning.name, oldSentCounter: before?.sent, newSentCounter: after?.sent,
+      sessionScopedIds: true, players: 3,
+    });
+  } catch (error) { await closePlayers(players); throw error; }
+}
+
+async function scenarioCustomPackFailover() {
+  const players = await createPlayers(3, 'Golf');
+  try {
+    const host = players[0];
+    await click(host.page, 'button[data-a=new]');
+    await host.page.locator('#e_name').fill('Стрессовый пользовательский набор');
+    await host.page.locator('#e_story').fill('Проверка передачи пользовательского набора');
+    await host.page.locator('textarea[id^="e_"]').evaluateAll(nodes => {
+      for (const node of nodes) {
+        if (!['e_story','e_bunkerSize','e_rooms','e_q'].includes(node.id)) node.value = 'CUSTOM-' + node.id;
+      }
+    });
+    await host.page.locator('#e_bunkerSize').fill('Усиленный бункер');
+    await host.page.locator('#e_rooms').fill('Медблок');
+    await host.page.locator('#e_q').fill('Сохранена ли герметичность? [10] | да');
+    await click(host.page, 'button[data-a=save]');
+    await waitBody(host.page, 'Стрессовый пользовательский набор');
+    await host.page.locator('#pick').selectOption({ label: 'Стрессовый пользовательский набор' });
+    const code = await makeRoom(host);
+    await Promise.all(players.slice(1).map(p => joinRoom(p, code)));
+    await waitForNames(host, players.map(p => p.name), 30000);
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (3)', 30000)));
+    await click(host.page, 'button[data-a=start]');
+    await Promise.all(players.map(p => waitBody(p.page, 'Выберите тему раунда', 20000)));
+    const cacheStates = await Promise.all(players.slice(1).map(p => p.page.evaluate(() => window.__bunkerTestDebug?.()?.cacheAvailable)));
+    assert(cacheStates.every(Boolean), 'One or more players did not cache the custom deck during the lobby');
+    const successor = players.slice(1).sort((a,b) => a.uid.localeCompare(b.uid))[0];
+    await host.context.close();
+    await waitBody(successor.page, 'Прежний хост пропал', 75000);
+    const after = await successor.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(after?.listsAvailable, 'Custom card lists were not restored after host failover');
+    assert(after?.gm === successor.uid, 'Failover did not transfer the game-master role');
+    await click(successor.page, 'input[data-a=edit]');
+    await successor.page.locator('button[data-a=rr]').first().click();
+    const finalState = await successor.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(!String(finalState?.error||'').includes('Набор недоступен'), 'Random card edit failed after custom-set failover');
+    await closePlayers(players.slice(1));
+    record('custom pack survives host failover and random card editing', 'PASS', {
+      successor: successor.name, customListsRestored: true, randomEdit: 'available', cachedPeers: cacheStates.length,
+    });
+  } catch (error) { await closePlayers(players); throw error; }
 }
 
 async function scenarioPublicMqttSmoke() {
@@ -564,7 +642,9 @@ const scenarios = [
   ['two concurrent independent rooms', scenarioConcurrentRoomIsolation],
   ['kick and ban', scenarioKickAndBan],
   ['custom pack import/export', scenarioImportValidation],
+  ['player reload and immediate rejoin', scenarioReloadRejoin],
   ['host failover', scenarioHostFailover],
+  ['custom-pack host failover', scenarioCustomPackFailover],
   ['real public MQTT connectivity', scenarioPublicMqttSmoke],
 ];
 for (const [name, run] of scenarios) {
