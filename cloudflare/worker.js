@@ -42,6 +42,29 @@ function allowJoinAttempt(ip) {
   return allowLimitedAttempts(JOIN_ATTEMPTS, ip, 15, 60_000);
 }
 
+async function verifyTurnstile(env, token, ip) {
+  if (!env.TURNSTILE_SECRET_KEY) return true;
+  if (typeof token !== "string" || token.length < 10 || token.length > 2_048) return false;
+  const form = new URLSearchParams({
+    secret: env.TURNSTILE_SECRET_KEY,
+    response: token
+  });
+  if (ip && ip !== "unknown") form.set("remoteip", ip);
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form
+    });
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result.success === true &&
+      (!Array.isArray(result["error-codes"]) || result["error-codes"].length === 0);
+  } catch {
+    return false;
+  }
+}
+
 function randomBytes(size = 32) {
   const bytes = new Uint8Array(size);
   crypto.getRandomValues(bytes);
@@ -344,6 +367,9 @@ export default {
       }
       const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
+      if (!await verifyTurnstile(env, body.value.turnstileToken, ip)) {
+        return json({ error: "Не пройдена проверка защиты от автоматических запросов. Обновите страницу и попробуйте снова." }, 403, cors);
+      }
       const uid = validUid(body.value.uid) ? body.value.uid : randomUid();
       const name = cleanText(body.value.name, 24);
       if (!name) return json({ error: "Введите имя игрока." }, 400, cors);
@@ -390,6 +416,9 @@ export default {
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       if (url.pathname === "/api/join" && !allowJoinAttempt(ip)) {
         return json({ error: "Слишком много попыток подключения. Попробуйте через минуту." }, 429, cors);
+      }
+      if (url.pathname === "/api/join" && !await verifyTurnstile(env, data.turnstileToken, ip)) {
+        return json({ error: "Не пройдена проверка защиты от автоматических запросов. Обновите страницу и попробуйте снова." }, 403, cors);
       }
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       const path = url.pathname === "/api/join" ? "/_join" : "/_resume";
