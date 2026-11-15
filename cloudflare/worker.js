@@ -9,6 +9,11 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:8000",
   "http://127.0.0.1:5500"
 ]);
+const CHARACTER_KEYS = [
+  "gender", "race", "body", "trait", "job", "health",
+  "hobby", "fear", "inv1", "inv2", "extra", "spec"
+];
+const PARAM_KEYS = ["gender", "body", "job", "hobby"];
 const JOIN_ATTEMPTS = new Map();
 const CREATE_ATTEMPTS = new Map();
 
