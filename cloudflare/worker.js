@@ -9,6 +9,33 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:8000",
   "http://127.0.0.1:5500"
 ]);
+const JOIN_ATTEMPTS = new Map();
+
+async function readJsonBody(request) {
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (length > MAX_PACK_BYTES + 8_000) return { error: "Запрос слишком большой.", status: 413 };
+  const raw = await request.text();
+  if (raw.length > MAX_PACK_BYTES + 8_000) return { error: "Запрос слишком большой.", status: 413 };
+  try {
+    const value = JSON.parse(raw);
+    if (!isObject(value)) return { error: "Некорректный запрос.", status: 400 };
+    return { value };
+  } catch {
+    return { error: "Не удалось прочитать запрос.", status: 400 };
+  }
+}
+
+function allowJoinAttempt(ip) {
+  const now = Date.now();
+  const key = String(ip || "unknown").slice(0, 64);
+  const entries = JOIN_ATTEMPTS.get(key) || [];
+  const recent = entries.filter(time => now - time < 60_000);
+  if (recent.length >= 15) return false;
+  recent.push(now);
+  if (JOIN_ATTEMPTS.size > 2_000) JOIN_ATTEMPTS.clear();
+  JOIN_ATTEMPTS.set(key, recent);
+  return true;
+}
 
 const CHARACTER_KEYS = [
   "gender", "race", "body", "trait", "job", "health",
@@ -297,7 +324,7 @@ export default {
     }
 
     if (url.pathname === "/api/create") {
-      const body = await this.readBody(request);
+      const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
       const uid = validUid(body.value.uid) ? body.value.uid : randomUid();
       const name = cleanText(body.value.name, 24);
@@ -335,7 +362,7 @@ export default {
     }
 
     if (url.pathname === "/api/join" || url.pathname === "/api/resume") {
-      const body = await this.readBody(request);
+      const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
       const data = body.value;
       const code = String(data.code || "").toUpperCase();
@@ -343,7 +370,7 @@ export default {
         return json({ error: "Код комнаты должен состоять из 8 символов." }, 400, cors);
       }
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-      if (url.pathname === "/api/join" && !this.allowJoinAttempt(ip)) {
+      if (url.pathname === "/api/join" && !allowJoinAttempt(ip)) {
         return json({ error: "Слишком много попыток подключения. Попробуйте через минуту." }, 429, cors);
       }
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
@@ -355,6 +382,7 @@ export default {
           "X-Client-IP": ip
         },
         body: JSON.stringify({
+          code,
           uid: data.uid,
           token: data.token,
           preferredUid: data.preferredUid,
@@ -382,32 +410,7 @@ export default {
     return json({ error: "Маршрут не найден." }, 404, cors);
   },
 
-  async readBody(request) {
-    const length = Number(request.headers.get("Content-Length") || 0);
-    if (length > MAX_PACK_BYTES + 8_000) return { error: "Запрос слишком большой.", status: 413 };
-    const raw = await request.text();
-    if (raw.length > MAX_PACK_BYTES + 8_000) return { error: "Запрос слишком большой.", status: 413 };
-    try {
-      const value = JSON.parse(raw);
-      if (!isObject(value)) return { error: "Некорректный запрос.", status: 400 };
-      return { value };
-    } catch {
-      return { error: "Не удалось прочитать запрос.", status: 400 };
-    }
-  },
 
-  allowJoinAttempt(ip) {
-    const now = Date.now();
-    const key = String(ip).slice(0, 64);
-    const entries = (this.joinAttempts || new Map()).get(key) || [];
-    const recent = entries.filter(time => now - time < 60_000);
-    if (recent.length >= 15) return false;
-    recent.push(now);
-    if (!this.joinAttempts) this.joinAttempts = new Map();
-    if (this.joinAttempts.size > 2_000) this.joinAttempts.clear();
-    this.joinAttempts.set(key, recent);
-    return true;
-  }
 };
 
 export class Room {
@@ -426,7 +429,7 @@ export class Room {
     if (!isObject(body)) return json({ error: "Некорректный запрос." }, 400);
 
     if (url.pathname === "/_create") return this.createRoom(body);
-    if (url.pathname === "/_join") return this.joinRoom(body);
+    if (url.pathname === "/_join") return this.joinRoom(body, request);
     if (url.pathname === "/_resume") return this.resumeRoom(body);
     return json({ error: "Маршрут не найден." }, 404);
   }
@@ -468,13 +471,11 @@ export class Room {
     });
   }
 
-  async joinRoom(body) {
+  async joinRoom(body, request) {
     const room = await this.state.storage.get("room");
     if (!room) return json({ error: "Комната не найдена или срок её хранения истёк." }, 404);
 
-    const ip = cleanText(body.profile?.name ? "ok" : "", 4) ? String(body.profile?.name) : "";
-    const clientIp = cleanText(body.profile?.ip || "", 64);
-    const sourceIp = clientIp || "unknown";
+    const sourceIp = cleanText(request.headers.get("X-Client-IP") || "unknown", 64);
     const rateKey = "join:" + sourceIp;
     const now = Date.now();
     const prior = (await this.state.storage.get(rateKey)) || [];
@@ -612,6 +613,7 @@ export class Room {
       await this.broadcast(room);
     } catch (error) {
       ws.send(JSON.stringify({ t: "err", e: cleanText(error.message || "Действие отклонено.", 180) }));
+      ws.send(JSON.stringify({ t: "s", R: this.viewFor(room, uid) }));
     }
   }
 
@@ -646,7 +648,7 @@ export class Room {
         const card = room.chars?.[uid]?.[key];
         if (!card) throw new Error("Карточка не найдена.");
         if (key === "spec") {
-          if (card.o) throw new Error("Специальная возможность уже активирована.");
+          if (card.o && room.status !== "end") throw new Error("Специальная возможность уже активирована.");
         } else if (room.status !== "end") {
           if (room.status !== "play" || room.phase !== "reveal" || room.shown?.[room.n]?.[uid]) {
             throw new Error("Сейчас нельзя раскрывать ещё одну характеристику.");
