@@ -155,7 +155,7 @@
 - **Комнаты и состояние игры:** Cloudflare Workers + SQLite Durable Objects.
 - **Обмен в реальном времени:** WebSocket с серверной проверкой команд и персональными представлениями состояния.
 - **Защита от автоматических запросов:** Cloudflare Turnstile (необязательно).
-- **Авторизация:** Discord OAuth Authorization Code Flow (необязательно).
+- **Авторизация:** Discord OAuth Authorization Code Flow с PKCE S256 (необязательно).
 
 ## 💬 Обратная связь
 
