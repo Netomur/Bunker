@@ -279,13 +279,15 @@ async function dcInit(){
  const params=new URLSearchParams(location.search),code=params.get('code'),state=params.get('state');
  if(code){
   const expected=sessionStorage.getItem('bunker-discord-state');
+  const verifier=sessionStorage.getItem('bunker-discord-verifier');
   sessionStorage.removeItem('bunker-discord-state');
+  sessionStorage.removeItem('bunker-discord-verifier');
   history.replaceState(null,'',location.pathname);
-  if(!expected||state!==expected){
+  if(!expected||state!==expected||!verifier){
    S.err='Проверка авторизации Discord не пройдена. Можно продолжить с обычным именем.';
   }else{
    try{
-    const result=await apiPost('/api/discord',{code});
+    const result=await apiPost('/api/discord',{code,codeVerifier:verifier});
     if(result.ok&&result.name){
      S.dc={name:result.name,av:result.av||''};S.name=result.name;ls('bdc',S.dc);
     }else S.err='Не удалось получить профиль Discord. Можно ввести имя вручную.';
@@ -561,7 +563,7 @@ case 'th':ST.th=k;saveST();render();break;
 case 'tf':ST.tf=+k;saveST();render();break;
 case 'rst':ST.ac='';ST.th='auto';ST.tf=13;saveST();render();break;
 case 'kick':upd({players:{[i]:null},ban:{[i]:true}});break;
-case 'dclogin':{const bytes=crypto.getRandomValues(new Uint8Array(24)),state=Array.from(bytes).map(x=>x.toString(16).padStart(2,'0')).join('');sessionStorage.setItem('bunker-discord-state',state);const redirect='https://netomur.github.io/Bunker/';location.href='https://discord.com/oauth2/authorize?client_id='+DISCORD_CLIENT_ID+'&response_type=code&scope=identify&redirect_uri='+encodeURIComponent(redirect)+'&state='+state;break}
+case 'dclogin':{const encode=b=>btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');const bytes=crypto.getRandomValues(new Uint8Array(32)),verifier=encode(bytes),state=encode(crypto.getRandomValues(new Uint8Array(24)));const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier)),challenge=encode(new Uint8Array(digest));sessionStorage.setItem('bunker-discord-state',state);sessionStorage.setItem('bunker-discord-verifier',verifier);const redirect='https://netomur.github.io/Bunker/';location.href='https://discord.com/oauth2/authorize?client_id='+DISCORD_CLIENT_ID+'&response_type=code&scope=identify&redirect_uri='+encodeURIComponent(redirect)+'&state='+state+'&code_challenge='+challenge+'&code_challenge_method=S256';break}
 case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
 case 'gmp':upd({gmPlays:t.checked});break;
