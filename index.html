@@ -324,7 +324,6 @@ const my=()=>{const v=R.votes?.[R.n]?.[uid];return v&&v!=='?'?v:myV[R.n]};
 const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
-window.__bunkerTestDebug=()=>({isHost,uid,rid,gm:R?.gm,hid:R?.hid,ban:R?.ban,player:R?.players?.[uid],status:R?.status,name:S.name,error:S.err});
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
 function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}

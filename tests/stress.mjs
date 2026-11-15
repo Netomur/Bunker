@@ -338,6 +338,71 @@ async function scenarioEightPlayerStress() {
   } catch (error) { await closePlayers(players); throw error; }
 }
 
+async function scenarioTwelvePlayerStress() {
+  const { players } = await createAndJoin(12, 'Foxtrot');
+  try {
+    await click(players[0].page, 'button[data-a=start]');
+    await waitBody(players[0].page, 'Выберите тему раунда');
+    await click(players[0].page, 'button[data-a=ph][data-k=reveal]');
+    await Promise.all(players.map((p) => p.page.locator('button[data-a=rev]').first().click()));
+    await waitBody(players[0].page, 'Показали: 12/12', 30000);
+
+    await click(players[0].page, 'button[data-a=endr]');
+    await click(players[0].page, 'button[data-a=ph][data-k=vote]');
+    const target = players[11].name;
+    await Promise.all(players.map(async (p, index) => {
+      const desired = index === 11 ? players[10].name : target;
+      await p.page.locator('tr').filter({ hasText: desired }).locator('button[data-a=vote]').click();
+    }));
+    await waitBody(players[0].page, 'Проголосовали: 12/12', 30000);
+    await click(players[0].page, 'button[data-a=vend]');
+    const rows = await players[0].page.locator('.w table tr').count();
+    assert(rows === 13, 'Expected one header and twelve player rows, got ' + rows);
+
+    await closePlayers(players);
+    record('twelve-player concurrency stress', 'PASS', {
+      players: 12,
+      simultaneousReveals: 12,
+      simultaneousVotes: 12,
+      tableRowsIncludingHeader: rows,
+    });
+  } catch (error) { await closePlayers(players); throw error; }
+}
+
+async function scenarioConcurrentRoomIsolation() {
+  const a = await createAndJoin(3, 'Hotel');
+  const b = await createAndJoin(3, 'India');
+  const all = [...a.players, ...b.players];
+  try {
+    const bodyA = await bodyText(a.players[0].page);
+    const bodyB = await bodyText(b.players[0].page);
+    assert(bodyA.includes('Hotel01') && !bodyA.includes('IndiaHost'), 'Room A contains a player from room B');
+    assert(bodyB.includes('India01') && !bodyB.includes('HotelHost'), 'Room B contains a player from room A');
+
+    await Promise.all([
+      click(a.players[0].page, 'button[data-a=start]'),
+      click(b.players[0].page, 'button[data-a=start]'),
+    ]);
+    await Promise.all([
+      waitBody(a.players[0].page, 'Выберите тему раунда'),
+      waitBody(b.players[0].page, 'Выберите тему раунда'),
+    ]);
+    const afterA = await bodyText(a.players[0].page);
+    const afterB = await bodyText(b.players[0].page);
+    assert(afterA.includes('Hotel01') && !afterA.includes('IndiaHost'), 'Room A received state from room B');
+    assert(afterB.includes('India01') && !afterB.includes('HotelHost'), 'Room B received state from room A');
+
+    await closePlayers(all);
+    record('two concurrent independent rooms', 'PASS', {
+      rooms: 2,
+      players: all.length,
+      roomA: a.code,
+      roomB: b.code,
+      crossRoomMessagesObserved: false,
+    });
+  } catch (error) { await closePlayers(all); throw error; }
+}
+
 async function scenarioKickAndBan() {
   const { players, code } = await createAndJoin(3, 'Delta');
   try {
@@ -346,6 +411,9 @@ async function scenarioKickAndBan() {
     await waitBody(kicked.page, 'Вас нет в списке игроков', 15000);
     await click(kicked.page, 'button[data-a=leave]');
     await kicked.page.locator('#code').fill(code);
+    await kicked.page.waitForTimeout(800);
+    const codeAfterOldDisconnect = await kicked.page.locator('#code').inputValue();
+    assert(codeAfterOldDisconnect === code, 'A delayed close event from the previous room erased the new room code');
     const enteredCode = await kicked.page.locator('#code').inputValue();
     const codeAcceptedByUi = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(enteredCode);
     if (!codeAcceptedByUi) throw new Error('Test supplied invalid room code: ' + JSON.stringify({ code, enteredCode }));
@@ -456,6 +524,8 @@ const scenarios = [
   ['normal four-player game and recovery', scenarioNormalGameAndRecovery],
   ['critical final scoring rule', scenarioCriticalFinalRule],
   ['eight-player concurrency stress', scenarioEightPlayerStress],
+  ['twelve-player concurrency stress', scenarioTwelvePlayerStress],
+  ['two concurrent independent rooms', scenarioConcurrentRoomIsolation],
   ['kick and ban', scenarioKickAndBan],
   ['custom pack import/export', scenarioImportValidation],
   ['host failover', scenarioHostFailover],
