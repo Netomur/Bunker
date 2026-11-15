@@ -75,13 +75,14 @@ const wss = new WebSocketServer({ host: HOST, port: BROKER_PORT });
 const sockets = new Set();
 const brokerEvents = [];
 wss.on('connection', (ws) => {
-  const client = { ws, broker: '', subscriptions: new Set() };
+  const client = { ws, broker: '', player: 'unknown', subscriptions: new Set() };
   sockets.add(client);
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(String(raw)); } catch { return; }
     if (msg.type === 'hello' && typeof msg.broker === 'string') {
       client.broker = msg.broker;
+      client.player = msg.player || 'unknown';
       ws.send(JSON.stringify({ type: 'ready' }));
       return;
     }
@@ -95,7 +96,7 @@ wss.on('connection', (ws) => {
       return;
     }
     if (msg.type === 'publish' && typeof msg.topic === 'string') {
-      try { const parsed = JSON.parse(String(msg.payload ?? '')); if (parsed.t === 'join' || parsed.t === 'err') brokerEvents.push({ broker: client.broker, topic: msg.topic, messageType: parsed.t, uid: parsed.uid, error: parsed.e, receivers: [...sockets].filter(s => s !== client && s.broker === client.broker && s.subscriptions.has(msg.topic)).length }); } catch {}
+      try { const parsed = JSON.parse(String(msg.payload ?? '')); if (parsed.t === 'join' || parsed.t === 'err') brokerEvents.push({ broker: client.broker, sender: client.player, topic: msg.topic, messageType: parsed.t, uid: parsed.uid, messageId: parsed.id, error: parsed.e, receivers: [...sockets].filter(s => s !== client && s.broker === client.broker && s.subscriptions.has(msg.topic)).map(s=>s.player) }); } catch {}
       const packet = JSON.stringify({ type: 'message', topic: msg.topic, payload: String(msg.payload ?? '') });
       for (const target of sockets) {
         if (target !== client && target.broker === client.broker &&
@@ -118,7 +119,7 @@ const fakeMqttInit = [
   '    constructor(url) {',
   '      this.url=url; this.handlers=Object.create(null); this.subscriptions=new Set(); this.connected=false;',
   "      this.ws=new WebSocket('ws://127.0.0.1:4174');",
-  "      this.ws.addEventListener('open',()=>this.ws.send(JSON.stringify({type:'hello',broker:url})));",
+  "      this.ws.addEventListener('open',()=>this.ws.send(JSON.stringify({type:'hello',broker:url,player:window.__testPlayerName||'unknown'})));",
   '      this.ws.addEventListener("message",(event)=>{',
   '        let msg; try { msg=JSON.parse(event.data); } catch { return; }',
   "        if(msg.type==='ready'){this.connected=true;this.emit('connect');}",
@@ -152,6 +153,7 @@ async function newPlayer(name, uid, fake = true) {
   });
   if (fake) {
     await context.addInitScript(({ playerName, playerId, init }) => {
+      window.__testPlayerName = playerName;
       localStorage.setItem('bn', playerName);
       localStorage.setItem('bu', JSON.stringify(playerId));
       (0, eval)(init);
@@ -351,11 +353,11 @@ async function scenarioKickAndBan() {
     await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 15000).catch(async (error) => {
       const guestStored = await kicked.page.evaluate(() => {
         let id = null; try { id = JSON.parse(localStorage.getItem('bu')); } catch {}
-        return { id, body: document.body.innerText };
+        return { id, body: document.body.innerText, codeValue: document.querySelector('#code')?.value, app: window.__bunkerTestDebug?.() };
       });
       const hostStored = await players[0].page.evaluate(() => {
         let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
-        return { ban: saved?.R?.ban || null, players: saved?.R?.players || null };
+        return { ban: saved?.R?.ban || null, players: saved?.R?.players || null, app: window.__bunkerTestDebug?.(), body: document.body.innerText };
       });
       console.log('[KICK DEBUG]', JSON.stringify({ code, enteredCode, guestStored, hostStored, brokerEvents: brokerEvents.slice(-40) }));
       throw error;
@@ -411,7 +413,7 @@ async function scenarioHostFailover() {
     if (canControl === 0) {
       const state = await successor.page.evaluate(() => {
         let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
-        return { savedGM: saved?.R?.gm, savedHid: saved?.R?.hid, status: saved?.R?.status, body: document.body.innerText };
+        return { savedGM: saved?.R?.gm, savedHid: saved?.R?.hid, status: saved?.R?.status, app: window.__bunkerTestDebug?.(), body: document.body.innerText };
       });
       console.log('[FAILOVER DEBUG]', JSON.stringify({ oldHost: players[0].uid, oldGM: players[0].uid, successor: successor.uid, candidates: players.slice(1).map(p=>p.uid), state }));
     }

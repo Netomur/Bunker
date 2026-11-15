@@ -324,12 +324,13 @@ const my=()=>{const v=R.votes?.[R.n]?.[uid];return v&&v!=='?'?v:myV[R.n]};
 const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
+window.__bunkerTestDebug=()=>({isHost,uid,rid,gm:R?.gm,hid:R?.hid,ban:R?.ban,player:R?.players?.[uid],status:R?.status});
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
 function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}
 function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m,{qos:1})}catch(e){}})}
 function view(){return{...R,set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
-function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});clearTimeout(bt);bt=setTimeout(()=>pub('s',{t:'s',R:view()}),100)}
+function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});clearTimeout(bt);pub('s',{t:'s',R:view()})}
 function rollKey(k,i){if(!R.set.lists){S.err='Набор недоступен после передачи хоста: 🎲 ничего не меняет';const c=R.chars[i][k];return{v:c.v,h:c.h||''}}const l=R.set.lists[k],p=sp(pick(l&&l.length?l:['—']));return{v:p.v+sfx(R.set,k),h:p.h}}
 function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};if(ids.length<2){S.err='Для начала игры нужны минимум два участника. Проверьте, что в комнате достаточно игроков с учётом настройки «Ведущий тоже играет».';render();return;}
  K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
