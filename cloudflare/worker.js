@@ -10,6 +10,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5500"
 ]);
 const JOIN_ATTEMPTS = new Map();
+const CREATE_ATTEMPTS = new Map();
 
 async function readJsonBody(request) {
   const length = Number(request.headers.get("Content-Length") || 0);
@@ -25,52 +26,20 @@ async function readJsonBody(request) {
   }
 }
 
-function allowJoinAttempt(ip) {
+function allowLimitedAttempts(map, ip, limit, windowMs) {
   const now = Date.now();
   const key = String(ip || "unknown").slice(0, 64);
-  const entries = JOIN_ATTEMPTS.get(key) || [];
-  const recent = entries.filter(time => now - time < 60_000);
-  if (recent.length >= 15) return false;
+  const entries = map.get(key) || [];
+  const recent = entries.filter(time => now - time < windowMs);
+  if (recent.length >= limit) return false;
   recent.push(now);
-  if (JOIN_ATTEMPTS.size > 2_000) JOIN_ATTEMPTS.clear();
-  JOIN_ATTEMPTS.set(key, recent);
+  if (map.size > 2_000) map.clear();
+  map.set(key, recent);
   return true;
 }
 
-const CHARACTER_KEYS = [
-  "gender", "race", "body", "trait", "job", "health",
-  "hobby", "fear", "inv1", "inv2", "extra", "spec"
-];
-const PARAM_KEYS = ["gender", "body", "job", "hobby"];
-const GAME_PATCH_KEYS = new Set([
-  "players", "ban", "gm", "gmPlays", "surv", "status", "chars",
-  "out", "shown", "votes", "vdone", "phase", "n", "ans"
-]);
-const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
-
-const json = (data, status = 200, extraHeaders = {}) => new Response(
-  JSON.stringify(data),
-  {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-      ...extraHeaders
-    }
-  }
-);
-
-function corsHeaders(origin) {
-  const headers = {
-    "Vary": "Origin",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "86400"
-  };
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
+function allowJoinAttempt(ip) {
+  return allowLimitedAttempts(JOIN_ATTEMPTS, ip, 15, 60_000);
 }
 
 function randomBytes(size = 32) {
@@ -369,6 +338,10 @@ export default {
     }
 
     if (url.pathname === "/api/create") {
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      if (!allowLimitedAttempts(CREATE_ATTEMPTS, ip, 5, 10 * 60_000)) {
+        return json({ error: "Слишком часто создаются комнаты с этого подключения. Попробуйте позже." }, 429, cors);
+      }
       const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
       const uid = validUid(body.value.uid) ? body.value.uid : randomUid();
@@ -520,7 +493,7 @@ export class Room {
     const room = await this.state.storage.get("room");
     if (!room) return json({ error: "Комната не найдена или срок её хранения истёк." }, 404);
 
-    const sourceIp = cleanText(request.headers.get("X-Client-IP") || "unknown", 64);
+    const sourceIp = await hashToken(cleanText(request.headers.get("X-Client-IP") || "unknown", 64));
     const rateKey = "join:" + sourceIp;
     const now = Date.now();
     const prior = (await this.state.storage.get(rateKey)) || [];
