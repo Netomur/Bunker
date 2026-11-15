@@ -19,42 +19,48 @@ th{background:var(--cd);position:sticky;top:0}td:first-child,th:first-child{posi
 .ov{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}.ov .card{max-width:360px;width:100%}
 .ok{color:var(--ok)}.bad{color:var(--bad)}.v{font-size:20px;font-weight:700}
 </style></head><body><div id="app">Загрузка…</div>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" onerror="var s=document.createElement('script');s.src='peerjs.min.js';document.head.append(s)"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" onerror="var s=document.createElement('script');s.src='mqtt.min.js';document.head.append(s)"></script>
 <script>
 const K=[['gender','Пол'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
 const L0={gender:'Мужчина|Женщина',body:'Худощавое|Атлетичное|Полное',trait:'Лидер|Трус|Добряк',job:'Врач|Инженер|Повар',health:'Здоров|Астма|Диабет',hobby:'Шахматы|Охота|Гитара',fear:'Темнота|Пауки|Замкнутое пространство',inv1:'Генератор|Палатка',inv2:'Аптечка|Нож|Рация',extra:'Умеет водить вертолёт|Бесплоден',spec:'Поменяйте Здоровье любого игрока на случайное|Избегите выбывания в одном голосовании'};
 const DEF={name:'Стандартный (пример)',story:['Ядерная война. Бункер рассчитан на год жизни без связи с поверхностью. Дверь повреждена.'],lists:Object.fromEntries(Object.entries(L0).map(([k,v])=>[k,v.split('|')])),q:[{t:'Есть ли возможность продолжить род?',need:'y'},{t:'Починена ли дверь в бункер?',need:'y'}]};
-let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,peer=null,conn=null,conns=[],mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
+let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
 try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
+const BR=[['emqx','wss://broker.emqx.io:8084/mqtt'],['hivemq','wss://broker.hivemq.com:8884/mqtt'],['eclipse','wss://mqtt.eclipseprojects.io:443/mqtt'],['mosquitto','wss://test.mosquitto.org:8081/']];
 const mg=(a,b)=>{for(const k in b){const v=b[k];if(v&&typeof v==='object'&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=='object')a[k]={};mg(a[k],v)}else a[k]=v}return a};
 const $=document.getElementById('app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
-const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(conn&&conn.open)conn.send({t:'u',d});else{S.err='Нет соединения с хостом';render()}};
+const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(Object.values(NET).includes('ok'))pub('h',{t:'u',d,id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}};
+const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
 function loadSets(){S.sets=ls('bsets')||[];render()}
-function bc(){ls('bh',{code:rid,R});conns=conns.filter(c=>c.open);conns.forEach(c=>c.send({t:'s',R}))}
-function closeNet(){try{peer&&peer.destroy()}catch(e){}peer=null;conn=null;conns=[];isHost=false}
-function hostConn(c){c.on('data',m=>{if(m.t==='join'){if(R.status!=='lobby'&&!R.players[m.uid]){c.send({t:'err',e:'Игра уже идёт'});return}c.uid=m.uid;conns.push(c);mg(R,{players:{[m.uid]:{name:m.name}}});bc();render()}else if(m.t==='u'&&c.uid){mg(R,m.d);bc();render()}})}
-function startHost(code,st){if(!window.Peer){S.err='Не загрузилась библиотека PeerJS: проверьте интернет и обновите страницу';return render()}
- closeNet();isHost=true;rid=code;R=st;peer=new Peer('bunker26-'+code);
- peer.on('open',()=>{S.scr='room';S.err='';bc();render()});peer.on('connection',hostConn);peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
- peer.on('error',e=>{S.err=e.type==='unavailable-id'?'Этот код ещё занят, подождите минуту и повторите':'Ошибка соединения: '+(e.type||e);render()})}
-function joinRoom(code){if(!window.Peer){S.err='Не загрузилась библиотека PeerJS: проверьте интернет и обновите страницу';return render()}
- closeNet();S.err='Подключаемся…';render();peer=new Peer();
- peer.on('open',()=>{const c=conn=peer.connect('bunker26-'+code,{reliable:true});
-  c.on('open',()=>c.send({t:'join',uid,name:S.name.trim()}));
-  c.on('data',m=>{if(m.t==='s'){R=m.R;rid=code;isHost=false;S.scr='room';S.err='';render()}else if(m.t==='err'){S.err=m.e;render()}});
-  c.on('close',()=>{if(conn===c&&S.scr==='room'){S.err='Соединение с хостом потеряно. Выйдите и зайдите снова.';render()}})});
- peer.on('error',e=>{S.err=e.type==='peer-unavailable'?'Комната не найдена (хост должен быть онлайн)':'Не удалось подключиться: '+(e.type||e);render()});
- setTimeout(()=>{if(S.scr!=='room'&&S.err==='Подключаемся…'){S.err='Нет ответа. Проверьте код и связь.';render()}},12000)}
-
+function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m)}catch(e){}})}
+function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});pub('s',{t:'s',R})}
+function closeNet(){clearInterval(jt);B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
+function onMsg(m){
+ if(isHost){if(m.id){if(seen.has(m.id))return;seen.add(m.id)}
+  if(m.t==='join'){if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}mg(R,{players:{[m.uid]:{name:m.name}}});bc();render()}
+  else if(m.t==='u'){mg(R,m.d);bc();render()}}
+ else if(m.t==='s'){if(!R||m.R._v>(R._v||0)){R=m.R;clearInterval(jt);S.scr='room';S.err='';render()}}
+ else if(m.t==='err'&&m.uid===uid){S.err=m.e;clearInterval(jt);render()}}
+function net(code,first){if(!window.mqtt){S.err='Не загрузилась библиотека связи: проверьте интернет и обновите страницу';render();return false}
+ rid=code;
+ B=BR.map(([n,u])=>{NET[n]='…';const c=mqtt.connect(u,{clientId:'bk'+uid+Math.random().toString(36).slice(2,6),connectTimeout:8000,reconnectPeriod:3000});
+  c.on('connect',()=>{NET[n]='ok';c.subscribe('bk26/'+code+'/'+(isHost?'h':'s'));render();first&&first()});
+  c.on('close',()=>{NET[n]='✗';render()});c.on('error',()=>{NET[n]='✗'});
+  c.on('message',(t,p)=>{try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});return true}
+function startHost(code,st){closeNet();isHost=true;R=st;S.scr='room';S.err='';if(!net(code,bc)){S.scr='home';isHost=false;R=null;render()}else render()}
+function joinRoom(code){closeNet();R=null;if(!code){S.err='Введите код комнаты';return render()}
+ const j=()=>pub('h',{t:'join',uid,name:S.name.trim(),id:uid+':'+(++sn)});S.err='Подключаемся…';
+ if(!net(code,j))return;render();jt=setInterval(()=>{if(R)clearInterval(jt);else j()},3000);
+ setTimeout(()=>{if(!R&&S.err==='Подключаемся…'){S.err='Нет ответа: комната не найдена или нет связи. Проверьте код и что хост онлайн.';render()}},15000)}
 function cell(id,k){const c=R.chars[id][k],mine=id===uid,g=gm(),end=R.status==='end';let h,b='';
  if(c.o)h=`<b>${esc(c.v)}</b>`+(k==='spec'?(c.u?' ✔':' ⚡'):'');else if(mine||(g&&peek))h=`<span class=dim>${esc(c.v)}</span>`;else h='🔒';
  if(mine&&!c.o&&!R.out[id]){if(k==='spec')b=`<br><button data-a=spec data-i="${id}">Активировать</button>`;else if(end||(R.phase==='reveal'&&!R.shown?.[R.n]?.[id]))b=`<br><button data-a=rev data-k=${k}>Открыть</button>`}
@@ -100,7 +106,7 @@ function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class
 
 function home(){return `<div class=card><h1>Бункер</h1><label>Ваше имя<input id=name value="${esc(S.name)}"></label></div>
 <div class=card><h3>Создать комнату</h3><label>Набор<select id=pick><option value=def>${esc(DEF.name)}</option>${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
-<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=4 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
+<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
 <div class=card><h3>Наборы</h3>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
 
 function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
@@ -111,7 +117,7 @@ ${K.map(([k,n])=>`<label>${n}<textarea id=e_${k} rows=4>${esc(e.lists[k]||'')}</
 <label>Вопросы финала, формат «Вопрос | да» или «Вопрос | нет» — какой ответ нужен, чтобы выжить<textarea id=e_q rows=5>${esc(e.q)}</textarea></label>
 <button data-a=save>Сохранить</button>${e.id?'<button class=g data-a=delset>Удалить набор</button>':''}</div>`}
 
-function render(){const v=S.scr==='home'?home():S.scr==='ed'?editor():room();$.innerHTML=(S.err?`<p class=err>${esc(S.err)}</p>`:'')+v}
+function render(){const v=S.scr==='home'?home():S.scr==='ed'?editor():room();$.innerHTML=(S.err?`<p class=err>${esc(S.err)}</p>`:'')+netTxt()+v}
 
 async function act(t){const a=t.dataset.a,i=t.dataset.i,k=t.dataset.k,c=R&&R.chars,me=uid;S.err='';
 try{switch(a){
@@ -125,7 +131,7 @@ case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y
 case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='home';loadSets();break;
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
  const p=$.querySelector('#pick').value,s0=p==='def'?DEF:S.sets.find(x=>x.id===p),s={name:s0.name,story:s0.story,lists:s0.lists,q:s0.q||[]};
- const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
+ const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
  startHost(code,{host:me,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim()}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
  joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
