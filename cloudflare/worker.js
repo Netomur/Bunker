@@ -319,7 +319,11 @@ export default {
       const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
       const code = cleanText(body.value.code, 512);
+      const codeVerifier = cleanText(body.value.codeVerifier, 128);
       if (!code) return json({ error: "Discord не вернул код авторизации." }, 400, cors);
+      if (!/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
+        return json({ error: "Проверка PKCE не пройдена. Начните вход через Discord заново." }, 400, cors);
+      }
       if (!env.DISCORD_CLIENT_SECRET) {
         return json({ error: "Вход через Discord пока не настроен на облачном сервере. Можно продолжить с обычным игровым именем." }, 503, cors);
       }
@@ -329,6 +333,7 @@ export default {
         client_secret: env.DISCORD_CLIENT_SECRET,
         grant_type: "authorization_code",
         code,
+        code_verifier: codeVerifier,
         redirect_uri: "https://netomur.github.io/Bunker/"
       });
 
