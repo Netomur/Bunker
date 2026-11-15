@@ -173,6 +173,9 @@ let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=n
 try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
+const msgSession=window.crypto&&typeof window.crypto.randomUUID==='function'?window.crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);
+const nextMsgId=()=>uid+':'+msgSession+':'+(++sn);
+const rememberMsg=id=>{if(typeof id!=='string'||id.length>160)return false;if(seen.has(id))return false;seen.add(id);if(seen.size>2048)seen.delete(seen.values().next().value);return true};
 const BR=[['emqx','wss://broker.emqx.io:8084/mqtt'],['hivemq','wss://broker.hivemq.com:8884/mqtt'],['eclipse','wss://mqtt.eclipseprojects.io:443/mqtt'],['mosquitto','wss://test.mosquitto.org:8081/']];
 const mg=(a,b)=>{if(!a||!b||typeof a!=='object'||typeof b!=='object')return a;for(const k of Object.keys(b)){if(k==='__proto__'||k==='prototype'||k==='constructor')continue;const v=b[k];if(v===null){delete a[k];continue}if(v&&typeof v==='object'&&!Array.isArray(v)){if(!Object.prototype.hasOwnProperty.call(a,k)||!a[k]||typeof a[k]!=='object'||Array.isArray(a[k]))a[k]={};mg(a[k],v)}else a[k]=v}return a};
 const $=document.getElementById('app');
@@ -309,7 +312,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
 const live=()=>Object.values(NET).includes('ok');
-const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',d,id:uid+':'+(++sn)})}else{S.err='Нет соединения с серверами связи';render()}};
+const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',d,id:nextMsgId()})}else{S.err='Нет соединения с серверами связи';render()}};
 const SX={gender:['Возраст','лет',1],body:['Рост','см',1],job:['Мастерство'],hobby:['Мастерство']};
 const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const yrs=n=>{const a=n%100,b=n%10;return n+(a>10&&a<15?' лет':b===1?' год':b>1&&b<5?' года':' лет')};
@@ -327,19 +330,23 @@ const gm=()=>R&&R.gm===uid;
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
 function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}
+function importStrings(value,label,maxItems=500,maxLength=2000){if(value==null)return[];if(!Array.isArray(value)||value.length>maxItems)throw new Error(label+': неверный список.');const out=[];for(const v of value){if(typeof v!=='string'||v.length>maxLength)throw new Error(label+': все элементы должны быть строками допустимой длины.');if(v.trim())out.push(v.trim())}return out}
+function normalizeImportedPack(raw,index){const label='Набор #'+(index+1);if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error(label+': ожидался объект.');if(typeof raw.id!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(raw.id))throw new Error(label+': некорректный ID.');if(BUILTIN.some(x=>x.id===raw.id))throw new Error(label+': ID совпадает со встроенным набором.');if(typeof raw.name!=='string'||!raw.name.trim()||raw.name.length>100)throw new Error(label+': укажите название до 100 символов.');const story=importStrings(raw.story??[],label+' — сюжет',100,5000),bunkerSize=importStrings(raw.bunkerSize??[],label+' — размеры бункера',200,300),rooms=importStrings(raw.rooms??[],label+' — комнаты',200,500);const sourceLists=raw.lists??{};if(!sourceLists||typeof sourceLists!=='object'||Array.isArray(sourceLists))throw new Error(label+': некорректные категории.');const lists={};for(const [k] of K)lists[k]=importStrings(Object.prototype.hasOwnProperty.call(sourceLists,k)?sourceLists[k]:[],label+' — '+k,1000,1000);const sourceQ=raw.q??[];if(!Array.isArray(sourceQ)||sourceQ.length>100)throw new Error(label+': некорректный список вопросов.');const q=sourceQ.map((item,n)=>{if(!item||typeof item!=='object'||Array.isArray(item)||typeof item.t!=='string'||!item.t.trim()||item.t.length>500)throw new Error(label+' — вопрос '+(n+1)+': некорректный текст.');const priority=Number(item.priority??1);if(!Number.isInteger(priority)||priority<1||priority>10)throw new Error(label+' — вопрос '+(n+1)+': приоритет должен быть от 1 до 10.');const need=item.need===undefined||item.need==='y'||item.need===true?'y':item.need==='n'||item.need===false?'n':null;if(!need)throw new Error(label+' — вопрос '+(n+1)+': ответ должен быть «да» или «нет».');return{t:item.t.trim(),priority,need}});const sourceSx=raw.sx??{};if(!sourceSx||typeof sourceSx!=='object'||Array.isArray(sourceSx))throw new Error(label+': некорректные дополнительные параметры.');const sx={};for(const [k,meta] of Object.entries(SX)){const item=sourceSx[k]??{};if(!item||typeof item!=='object'||Array.isArray(item))throw new Error(label+' — параметры '+k+': некорректные данные.');const list=importStrings(item.list??[],label+' — параметры '+k,300,200);const e=Number(item.e??0);if(!Number.isFinite(e)||e<0||e>100)throw new Error(label+' — параметры '+k+': шанс «Пусто» должен быть от 0 до 100.');sx[k]={list,e};if(meta[2]){const lo=item.lo==null||item.lo===''?null:Number(item.lo),hi=item.hi==null||item.hi===''?null:Number(item.hi),p=Number(item.p??50);if((lo!==null&&!Number.isFinite(lo))||(hi!==null&&!Number.isFinite(hi))||(lo!==null&&hi!==null&&hi<lo)||!Number.isFinite(p)||p<0||p>100)throw new Error(label+' — диапазон '+k+': проверьте границы и вероятность.');sx[k].lo=lo;sx[k].hi=hi;sx[k].p=p}}return{id:raw.id,ownerId:typeof raw.ownerId==='string'?raw.ownerId.slice(0,100):'',name:raw.name.trim(),story,lists,sx,bunkerSize,rooms,q}}
 function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m,{qos:1})}catch(e){}})}
 function view(){return{...R,set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
+function saveRoomSet(code,set){if(!code||!set||!set.lists)return;try{sessionStorage.setItem('bk26-set-'+code,JSON.stringify(set))}catch(e){}}
+function restoreRoomSet(){if(!R||R.set?.lists||!rid)return false;try{const saved=JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null');if(!saved||typeof saved!=='object'||Array.isArray(saved)||saved.bid!==R.set?.bid||saved.name!==R.set?.name||!saved.lists)return false;const lists={};for(const [k] of K){if(!Array.isArray(saved.lists[k])||saved.lists[k].some(v=>typeof v!=='string'))return false;lists[k]=saved.lists[k].slice()}R.set={...R.set,...saved,lists};return true}catch(e){return false}}
 function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});clearTimeout(bt);pub('s',{t:'s',R:view()})}
 function rollKey(k,i){if(!R.set.lists){S.err='Набор недоступен после передачи хоста: 🎲 ничего не меняет';const c=R.chars[i][k];return{v:c.v,h:c.h||''}}const l=R.set.lists[k],p=sp(pick(l&&l.length?l:['—']));return{v:p.v+sfx(R.set,k),h:p.h}}
 function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};if(ids.length<2){S.err='Для начала игры нужны минимум два участника. Проверьте, что в комнате достаточно игроков с учётом настройки «Ведущий тоже играет».';render();return;}
  K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
  const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{{const p=sp(pl[k][n%pl[k].length]);ch[id][k]={v:p.v+sfx(s,k),h:p.h,o:0}}})});
  upd({status:'play',chars:ch,story:pick(s.story),env:{size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])},phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))})}
-function closeNet(){netGeneration++;clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
+function closeNet(){netGeneration++;clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};seen.clear();S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
 const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
-const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:uid+':'+(++sn)})};
+const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:nextMsgId()})};
 function stepDown(nr){isHost=false;clearInterval(hbt);B.forEach(b=>{try{b.c.unsubscribe('bk26/'+rid+'/h')}catch(e){}});ls('bh',null);R=nr;S.note='Ведение партии перешло к другому игроку.';resend();render()}
-function takeover(){isHost=true;R.ep=(R.ep||0)+1;const previousHost=R.hid||R.host;if(R.gm===previousHost||!R.players[R.gm]||R.out?.[R.gm]){R.gm=uid;if(!R.gmPlays&&R.chars)delete R.chars[uid]}R.hid=uid;
+function takeover(){isHost=true;R.ep=(R.ep||0)+1;const previousHost=R.hid||R.host;if(!R.set?.lists)restoreRoomSet();if(R.gm===previousHost||!R.players[R.gm]||R.out?.[R.gm]){R.gm=uid;if(!R.gmPlays&&R.chars)delete R.chars[uid]}R.hid=uid;
  const bs=BUILTIN.find(x=>x.id===R.set?.bid);if(bs)R.set={...bs,bid:bs.id};
  if(R.phase==='vote'&&R.votes&&!R.vdone?.[R.n]){R.votes[R.n]={};if(myV[R.n])R.votes[R.n][uid]=myV[R.n]}
  B.forEach(b=>{try{b.c.connected&&b.c.subscribe('bk26/'+rid+'/h',{qos:1})}catch(e){}});
@@ -348,12 +355,12 @@ function takeover(){isHost=true;R.ep=(R.ep||0)+1;const previousHost=R.hid||R.hos
 function chk(){if(isHost||!R||!rid||!live())return;const r=Object.keys(R.players).filter(x=>x!==R.hid&&!R.out?.[x]).sort().indexOf(uid);if(r<0)return;if(Date.now()-lastSt>45000+r*10000)takeover()}
 function onMsg(m){
  if(m.t==='err'){if(m.uid===uid){S.err=m.e;clearInterval(jt);render()}return}
- if(m.t==='s'){lastSt=Date.now();
+ if(m.t==='s'){lastSt=Date.now();if(m.R?.status==='lobby'&&m.R.set?.lists)saveRoomSet(rid,m.R.set);
   if(isHost){if(m.R.hid!==uid&&newer(m.R,R))stepDown(m.R);return}
   if(!R||newer(m.R,R)){const f=!R,ne=R&&(m.R.ep||0)>(R.ep||0);R=m.R;clearInterval(jt);if(f)S.scr='room';S.err='';if(ne)resend();render()}
   return}
  if(!isHost)return;
- if(m.id){if(seen.has(m.id))return;seen.add(m.id)}
+ if(m.id&&!rememberMsg(m.id))return;
  if(m.t==='join'){if(!/^(?:u[a-z0-9]{1,24}|d[0-9]{1,24})$/.test(m.uid||'')||typeof m.name!=='string'||!m.name.trim())return;if(R.ban?.[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Ведущий исключил вас из комнаты'});return}
   if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}
   mg(R,{players:{[m.uid]:{name:m.name.trim().slice(0,32),av:m.av||''}}});bc();render()}
@@ -368,7 +375,7 @@ function net(code,first){if(!window.mqtt){S.err='Не загрузилась б�
   c.on('message',(t,p)=>{if(generation!==netGeneration)return;try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});clearInterval(mt);mt=setInterval(chk,5000);return true}
 function startHost(code,st){closeNet();isHost=true;R=st;S.scr='room';S.err='';if(!net(code,bc)){S.scr='home';isHost=false;R=null;render()}else{hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);render()}}
 function joinRoom(code){closeNet();R=null;if(!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(code)){S.err='Введите корректный шестизначный код комнаты';return render()}
- const j=()=>pub('h',{t:'join',uid,name:S.name.trim().slice(0,32),av:S.dc?.av||'',id:uid+':'+(++sn)});S.err='Подключаемся…';
+ const j=()=>pub('h',{t:'join',uid,name:S.name.trim().slice(0,32),av:S.dc?.av||'',id:nextMsgId()});S.err='Подключаемся…';
  if(!net(code,j))return;render();jt=setInterval(()=>{if(R)clearInterval(jt);else j()},3000);
  setTimeout(()=>{if(!R&&S.err==='Подключаемся…'){S.err='Нет ответа: комната не найдена или нет связи. Проверьте код и что хост онлайн.';render()}},30000)}
 function cell(id,k){const c=R.chars[id][k]||{v:'—',o:1},mine=id===uid,g=gm(),end=R.status==='end';let h,b='';
@@ -453,13 +460,13 @@ case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y
  const id=S.ed.id||'s'+Date.now().toString(36),l=(ls('bsets')||[]).filter(x=>x.id!==id);l.push({id,...d});ls('bsets',l);S.scr='home';loadSets();break}
 case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='home';loadSets();break;
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
- const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:BUILTIN.some(x=>x.id===p)?p:'',name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
+ const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:p,name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
  const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
  startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
  joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
 case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
-case 'imp':{const f=t.files[0];if(!f)break;const l=JSON.parse(await f.text()),cur=ls('bsets')||[];l.forEach(x=>{const j=cur.findIndex(y=>y.id===x.id);j<0?cur.push(x):cur[j]=x});ls('bsets',cur);loadSets();break}
+case 'imp':{const f=t.files[0];if(!f)break;if(f.size>2*1024*1024)throw new Error('Файл набора слишком большой (максимум 2 МБ).');const raw=JSON.parse(await f.text());if(!Array.isArray(raw)||raw.length>100)throw new Error('Файл должен содержать массив не более чем из 100 наборов.');const ids=new Set(),clean=raw.map((x,n)=>normalizeImportedPack(x,n));for(const p of clean){if(ids.has(p.id))throw new Error('В файле повторяется ID набора: '+p.id);ids.add(p.id)}const cur=ls('bsets'),next=Array.isArray(cur)?[...cur]:[];for(const p of clean){const j=next.findIndex(y=>y&&y.id===p.id);j<0?next.push(p):next[j]=p}ls('bsets',next);loadSets();break}
 case 'rest':{const h=ls('bh');startHost(h.code,h.R);break}
 case 'info':case 'sett':S.prev=S.scr;S.scr=a;render();break;
 case 'back2':S.scr=S.prev==='room'&&R?'room':'home';render();break;
@@ -473,7 +480,7 @@ case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
 case 'gmp':upd({gmPlays:t.checked});break;
 case 'surv':upd({surv:Math.max(1,+t.value||1)});break;
-case 'start':if(isHost)doStart();else if(live())pub('h',{t:'start',id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'start':if(isHost)doStart();else if(live())pub('h',{t:'start',id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
 case 'peek':peek=t.checked;render();break;
 case 'edit':edit=t.checked;render();break;
 case 'ph':upd({phase:k,n:R.n+1});break;
@@ -490,12 +497,13 @@ case 'fin':upd({status:'end'});break;
 case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
 case 'allall':upd({chars:Object.fromEntries(Object.keys(c).map(id=>[id,Object.fromEntries(K.map(([k])=>[k,{o:1}]))]))});break;
 case 'ans':upd({ans:{[i]:k}});break;
-case 'rr':if(isHost)upd({chars:{[i]:{[k]:rollKey(k,i)}}});else if(live())pub('h',{t:'rr',i,k,id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'rr':if(isHost)upd({chars:{[i]:{[k]:rollKey(k,i)}}});else if(live())pub('h',{t:'rr',i,k,id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
 case 'ed':{const v=await ask('Новое значение (подсказку пишите в [ ])',c[i][k].v+(c[i][k].h?' ['+c[i][k].h+']':''));if(v!==null){const p=sp(v);upd({chars:{[i]:{[k]:{v:p.v,h:p.h}}}})}break}
 case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name]);if(!o.length)break;const j=await ask('Поменять местами с игроком:',0,o);if(j)upd({chars:{[i]:{[k]:{v:c[j][k].v,h:c[j][k].h||''}},[j]:{[k]:{v:c[i][k].v,h:c[i][k].h||''}}}});break}
 case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
 }}catch(e){S.err='Ошибка: '+(e.message||e.code||e);render()}}
 
+if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
 document.addEventListener('click',e=>{const t=e.target.closest('button[data-a]');t&&act(t)});
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
 document.addEventListener('change',e=>{const t=e.target.closest('input[data-a],select[data-a]');t&&act(t)});
