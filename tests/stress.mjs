@@ -483,7 +483,7 @@ async function scenarioHostFailover() {
   try {
     await click(players[0].page, 'button[data-a=start]');
     await waitBody(players[0].page, 'Выберите тему раунда');
-    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Выберите тему раунда', 15000)));
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Ведущий выбирает тему раунда', 15000)));
     await Promise.all(players.slice(1).map(p => p.page.locator('.w table').waitFor({ state: 'visible', timeout: 15000 })));
     await players[0].page.waitForTimeout(500);
     await players[0].context.close();
@@ -552,7 +552,8 @@ async function scenarioCustomPackFailover() {
     await waitForNames(host, players.map(p => p.name), 30000);
     await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (3)', 30000)));
     await click(host.page, 'button[data-a=start]');
-    await Promise.all(players.map(p => waitBody(p.page, 'Выберите тему раунда', 20000)));
+    await waitBody(host.page, 'Выберите тему раунда', 20000);
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Ведущий выбирает тему раунда', 20000)));
     const cacheStates = await Promise.all(players.slice(1).map(p => p.page.evaluate(() => window.__bunkerTestDebug?.()?.cacheAvailable)));
     assert(cacheStates.every(Boolean), 'One or more players did not cache the custom deck during the lobby');
     const successor = players.slice(1).sort((a,b) => a.uid.localeCompare(b.uid))[0];
@@ -596,7 +597,7 @@ async function scenarioPublicMqttSmoke() {
     stage = 'start the actual two-browser game';
     await click(host.page, 'button[data-a=start]');
     await waitBody(host.page, 'Выберите тему раунда', 30000);
-    await waitBody(guest.page, 'Выберите тему раунда', 30000);
+    await waitBody(guest.page, 'Ведущий выбирает тему раунда', 30000);
     await click(host.page, 'button[data-a=ph][data-k=reveal]');
     await waitBody(guest.page, 'Показ характеристик.', 30000);
     await Promise.all([
@@ -628,8 +629,17 @@ async function scenarioPublicMqttSmoke() {
     await closePlayers(players);
     record('real two-browser game over public MQTT WSS', 'PASS', report.publicMqtt);
   } catch (error) {
+    const clientStates = await Promise.all(players.map(async p => ({
+      player: p.name,
+      body: await bodyText(p.page).catch(() => ''),
+      debug: await p.page.evaluate(() => window.__bunkerTestDebug?.()).catch(() => null),
+    })));
+    console.log('[PUBLIC MQTT DEBUG]', JSON.stringify({ stage, clientStates }));
     await closePlayers(players);
-    report.publicMqtt = { stage, error: error.message, configured: PUBLIC_BROKERS.map(([name, url]) => ({ name, url })) };
+    report.publicMqtt = {
+      stage, error: error.message, clientStates,
+      configured: PUBLIC_BROKERS.map(([name, url]) => ({ name, url })),
+    };
     record('real two-browser game over public MQTT WSS', 'WARN', report.publicMqtt);
   }
 }
