@@ -24,7 +24,7 @@ th{background:var(--cd);position:sticky;top:0}td:first-child,th:first-child{posi
 const K=[['gender','Пол'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
 const L0={gender:'Мужчина|Женщина',body:'Худощавое|Атлетичное|Полное',trait:'Лидер|Трус|Добряк',job:'Врач|Инженер|Повар',health:'Здоров|Астма|Диабет',hobby:'Шахматы|Охота|Гитара',fear:'Темнота|Пауки|Замкнутое пространство',inv1:'Генератор|Палатка',inv2:'Аптечка|Нож|Рация',extra:'Умеет водить вертолёт|Бесплоден',spec:'Поменяйте Здоровье любого игрока на случайное|Избегите выбывания в одном голосовании'};
 const DEF={name:'Стандартный (пример)',story:['Ядерная война. Бункер рассчитан на год жизни без связи с поверхностью. Дверь повреждена.'],lists:Object.fromEntries(Object.entries(L0).map(([k,v])=>[k,v.split('|')])),q:[{t:'Есть ли возможность продолжить род?',need:'y'},{t:'Починена ли дверь в бункер?',need:'y'}]};
-let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
+let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,myV={},mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
 try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
@@ -35,6 +35,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
 const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(Object.values(NET).includes('ok'))pub('h',{t:'u',d,id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}};
+const my=()=>{const v=R.votes?.[R.n]?.[uid];return v&&v!=='?'?v:myV[R.n]};
 const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
@@ -42,8 +43,8 @@ function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement
 
 function loadSets(){S.sets=ls('bsets')||[];render()}
 function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m)}catch(e){}})}
-function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});pub('s',{t:'s',R})}
-function closeNet(){clearInterval(jt);B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
+function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});const V={...R,votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))};pub('s',{t:'s',R:V})}
+function closeNet(){clearInterval(jt);myV={};B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
 function onMsg(m){
  if(isHost){if(m.id){if(seen.has(m.id))return;seen.add(m.id)}
   if(m.t==='join'){if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}mg(R,{players:{[m.uid]:{name:m.name}}});bc();render()}
@@ -67,18 +68,19 @@ function cell(id,k){const c=R.chars[id][k],mine=id===uid,g=gm(),end=R.status==='
  if(g&&edit)b+=`<br><button class=g data-a=rr data-i="${id}" data-k=${k}>🎲</button><button class=g data-a=ed data-i="${id}" data-k=${k}>✎</button><button class=g data-a=sw data-i="${id}" data-k=${k}>⇄</button><button class=g data-a=tg data-i="${id}" data-k=${k}>👁</button>`;
  return `<td>${h}${b}</td>`}
 
-function table(){const ids=Object.keys(R.chars),g=gm(),vt=R.votes?.[R.n]||{};
+function table(){const ids=Object.keys(R.chars),g=gm(),vt=R.votes?.[R.n]||{},dn=R.vdone?.[R.n],mv=my();
  const rows=ids.map(id=>{const out=R.out[id],cnt=Object.values(vt).filter(x=>x===id).length;let a='';
-  if(R.status==='play'&&R.phase==='vote'&&!out&&!R.out[uid]&&R.chars[uid]&&id!==uid)a+=`<button class="${vt[uid]===id?'on':''}" data-a=vote data-i="${id}">${vt[uid]===id?'✔ Ваш голос':'Голосовать'}</button>`;
+  if(R.status==='play'&&R.phase==='vote'&&!dn&&!out&&!R.out[uid]&&R.chars[uid]&&id!==uid)a+=`<button class="${mv===id?'on':''}" data-a=vote data-i="${id}">${mv===id?'✔ Ваш голос':'Голосовать'}</button>`;
+  if(R.phase==='vote'&&!dn&&vt[id])a+='<br><span class=mu>✓ проголосовал</span>';
   if(g)a+=out?`<button class=g data-a=back data-i="${id}">↩ Вернуть</button>`:`<button class=g data-a=out data-i="${id}">Выбыл</button>`;
-  const vs=g?Object.keys(vt).filter(v=>vt[v]===id).map(v=>R.players[v]?.name).join(', '):'';
-  return `<tr class="${out?'out':''}"><td><b>${esc(R.players[id]?.name)}</b>${id===R.gm?' 🎙':''}${id===uid?' (вы)':''}${R.phase==='vote'&&cnt?`<br>🗳 ${cnt}${vs?' ← '+esc(vs):''}`:''}</td>${K.map(([k])=>cell(id,k)).join('')}<td>${a}</td></tr>`}).join('');
+  const vs=dn?Object.keys(vt).filter(v=>vt[v]===id).map(v=>R.players[v]?.name).join(', '):'';
+  return `<tr class="${out?'out':''}"><td><b>${esc(R.players[id]?.name)}</b>${id===R.gm?' 🎙':''}${id===uid?' (вы)':''}${dn&&cnt?`<br>🗳 ${cnt} ← ${esc(vs)}`:''}</td>${K.map(([k])=>cell(id,k)).join('')}<td>${a}</td></tr>`}).join('');
  return `<div class=w><table><tr><th>Игрок</th>${K.map(k=>`<th>${k[1]}</th>`).join('')}<th></th></tr>${rows}</table></div>`}
 
 function banner(g){const ph=R.phase;
  if(ph==='choose')return g?`<b>Выберите тему раунда:</b> <button data-a=ph data-k=reveal>Показ характеристик</button><button data-a=ph data-k=vote>Голосование на выбывание</button>`:'Ведущий выбирает тему раунда…';
  if(ph==='reveal'){const n=Object.keys(R.shown?.[R.n]||{}).filter(i=>!R.out[i]).length;return `<b>Показ характеристик.</b> Показали: ${n}/${al().length}. Откройте одну характеристику в своей строке. `+(g?'<button data-a=endr>Все показали — дальше</button>':'')}
- const n=Object.keys(R.votes?.[R.n]||{}).length;return `<b>Голосование.</b> Проголосовали: ${n}/${al().length}. `+(g?'<button class=g data-a=none>Никто не выбыл</button> Проигравшего отметьте кнопкой «Выбыл».':'')}
+ const n=Object.keys(R.votes?.[R.n]||{}).length,dn=R.vdone?.[R.n];return `<b>Голосование.</b> Проголосовали: ${n}/${al().length}. `+(dn?'Голосование завершено, результаты в таблице. ':g?'<button data-a=vend>Завершить голосование и показать результаты</button> ':'')+(g?'<button class=g data-a=none>Никто не выбыл</button> Проигравшего отметьте кнопкой «Выбыл».':'')}
 
 function endPanel(g){const qs=R.set.q||[],an=R.ans||{},done=qs.every((x,i)=>an[i]),ok=qs.every((x,i)=>an[i]===x.need);
  const bad=qs.filter((x,i)=>an[i]!==x.need).map(x=>x.t);
@@ -149,12 +151,13 @@ case 'peek':peek=t.checked;render();break;
 case 'edit':edit=t.checked;render();break;
 case 'ph':upd({phase:k,n:R.n+1});break;
 case 'endr':upd({phase:'choose'});break;
-case 'none':upd({phase:'choose'});break;
+case 'none':upd({phase:'choose',vdone:{[R.n]:true}});break;
 case 'rev':upd({chars:{[me]:{[k]:{o:1}}},shown:{[R.n]:{[me]:true}}});break;
 case 'spec':upd({chars:{[i]:{spec:{o:1}}}});break;
 case 'done':upd({chars:{[i]:{spec:{u:1}}}});break;
-case 'vote':upd({votes:{[R.n]:{[me]:i}}});break;
-case 'out':{const left=al().filter(x=>x!==i).length;upd({out:{[i]:true},phase:R.phase==='vote'?'choose':R.phase,status:left<=R.surv?'end':R.status});break}
+case 'vote':myV[R.n]=i;upd({votes:{[R.n]:{[me]:i}}});render();break;
+case 'vend':upd({vdone:{[R.n]:true}});break;
+case 'out':{const left=al().filter(x=>x!==i).length;upd({out:{[i]:true},vdone:{[R.n]:true},phase:R.phase==='vote'?'choose':R.phase,status:left<=R.surv?'end':R.status});break}
 case 'back':upd({out:{[i]:false}});break;
 case 'fin':upd({status:'end'});break;
 case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
