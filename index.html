@@ -503,7 +503,7 @@ case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name])
 case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
 }}catch(e){S.err='Ошибка: '+(e.message||e.code||e);render()}}
 
-if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
+if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,cacheAvailable:(()=>{try{return !!JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null')?.lists}catch(e){return false}})(),seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
 document.addEventListener('click',e=>{const t=e.target.closest('button[data-a]');t&&act(t)});
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
 document.addEventListener('change',e=>{const t=e.target.closest('input[data-a],select[data-a]');t&&act(t)});
