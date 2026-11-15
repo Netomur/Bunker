@@ -151,7 +151,7 @@ async function newPlayer(name, uid, fake = true) {
   if (fake) {
     await context.addInitScript(({ playerName, playerId, init }) => {
       localStorage.setItem('bn', playerName);
-      localStorage.setItem('bu', playerId);
+      localStorage.setItem('bu', JSON.stringify(playerId));
       (0, eval)(init);
     }, { playerName: name, playerId: uid, init: fakeMqttInit });
     await page.route('**/mqtt.min.js*', (route) => route.fulfill({
@@ -423,24 +423,34 @@ async function scenarioPublicMqttSmoke() {
   }
 }
 
-let fatal = null;
-try {
-  await scenarioNormalGameAndRecovery();
-  await scenarioCriticalFinalRule();
-  await scenarioEightPlayerStress();
-  await scenarioKickAndBan();
-  await scenarioImportValidation();
-  await scenarioHostFailover();
-  await scenarioPublicMqttSmoke();
-} catch (error) {
-  fatal = error;
-  console.error('[FATAL]', error.stack || error);
-} finally {
+const scenarios = [
+  ['normal four-player game and recovery', scenarioNormalGameAndRecovery],
+  ['critical final scoring rule', scenarioCriticalFinalRule],
+  ['eight-player concurrency stress', scenarioEightPlayerStress],
+  ['kick and ban', scenarioKickAndBan],
+  ['custom pack import/export', scenarioImportValidation],
+  ['host failover', scenarioHostFailover],
+  ['real public MQTT connectivity', scenarioPublicMqttSmoke],
+];
+for (const [name, run] of scenarios) {
+  try {
+    await run();
+  } catch (error) {
+    record(name, 'FAIL', { message: error.message, stack: String(error.stack || '').split('\n').slice(0, 4) });
+    console.error('[SCENARIO FAIL]', name, error.stack || error);
+  }
+}
+if (report.browserErrors.length) {
+  record('browser runtime errors', 'FAIL', { errors: report.browserErrors.slice(0, 12), count: report.browserErrors.length });
+} else {
+  record('browser runtime errors', 'PASS', { count: 0 });
+}
+{
   report.finishedAt = new Date().toISOString();
   report.summary = {
     passed: report.scenarios.filter((x) => x.status === 'PASS').length,
     warnings: report.scenarios.filter((x) => x.status === 'WARN').length,
-    failed: report.scenarios.filter((x) => x.status === 'FAIL').length + (fatal ? 1 : 0),
+    failed: report.scenarios.filter((x) => x.status === 'FAIL').length,
     browserErrors: report.browserErrors.length,
   };
   try { await writeFile('bunker-stress-report.json', JSON.stringify(report, null, 2)); } catch {}
@@ -449,4 +459,4 @@ try {
   try { await new Promise((ok) => httpServer.close(ok)); } catch {}
 }
 console.log('[SUMMARY]', JSON.stringify(report.summary));
-if (fatal) process.exitCode = 1;
+if (report.summary.failed > 0) process.exitCode = 1;
