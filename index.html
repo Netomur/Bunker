@@ -574,7 +574,7 @@ case 'edit':edit=t.checked;render();break;
 case 'ph':upd({phase:k,n:R.n+1});break;
 case 'endr':upd({phase:'choose'});break;
 case 'none':upd({phase:'choose',vdone:{[R.n]:true}});break;
-case 'rev':upd({chars:{[me]:{[k]:{o:1}}},shown:{[R.n]:{[me]:true}}});break;
+case 'rev':upd({chars:{[me]:{[k]:{o:1}}}});break;
 case 'spec':upd({chars:{[i]:{spec:{o:1}}}});break;
 case 'done':upd({chars:{[i]:{spec:{u:1}}}});break;
 case 'vote':myV[R.n]=i;upd({votes:{[R.n]:{[me]:i}}});render();break;
