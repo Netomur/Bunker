@@ -262,7 +262,7 @@ async function scenarioNormalGameAndRecovery() {
     }));
     await waitBody(players[0].page, 'Проголосовали: 4/4', 20000);
     await click(players[0].page, 'button[data-a=vend]');
-    await players[0].page.locator('tr').filter({ hasText: eliminated }).locator('button[data-a=out]').click();
+    await click(players[0].page, 'button[data-a=out][data-i="' + players[3].uid + '"]');
 
     await click(players[0].page, 'button[data-a=fin]');
     await answerAll(players[0].page, false);

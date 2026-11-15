@@ -23,7 +23,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm init -y
-          npm install --no-save playwright ws
+          npm install --no-save playwright
           npx playwright install --with-deps chromium
       - name: Run browser game simulations and public MQTT smoke test
         run: node tests/stress.mjs
