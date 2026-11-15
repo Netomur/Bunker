@@ -633,7 +633,7 @@ export class Room {
     if (!allowed.length || allowed.some(key => !["chars", "votes", "shown"].includes(key))) {
       throw new Error("У участника нет прав на это действие.");
     }
-    if (room.out?.[uid]) throw new Error("Выбывший игрок не может выполнять это действие.");
+    if (room.out?.[uid] && room.status !== "end") throw new Error("Выбывший игрок не может выполнять это действие.");
 
     if (patch.chars) {
       if (!isObject(patch.chars) || Object.keys(patch.chars).length !== 1 || !patch.chars[uid]) {
