@@ -323,6 +323,51 @@ export default {
       return json({ error: "Метод не поддерживается." }, 405, cors);
     }
 
+    if (url.pathname === "/api/discord") {
+      const body = await readJsonBody(request);
+      if (body.error) return json({ error: body.error }, body.status, cors);
+      const code = cleanText(body.value.code, 512);
+      if (!code) return json({ error: "Discord не вернул код авторизации." }, 400, cors);
+      if (!env.DISCORD_CLIENT_SECRET) {
+        return json({ error: "Вход через Discord пока не настроен на облачном сервере. Можно продолжить с обычным игровым именем." }, 503, cors);
+      }
+
+      const form = new URLSearchParams({
+        client_id: "1571591321150431262",
+        client_secret: env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: "https://netomur.github.io/Bunker/"
+      });
+
+      const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form
+      });
+      const tokenData = await tokenResponse.json().catch(() => ({}));
+      if (!tokenResponse.ok || !tokenData.access_token) {
+        return json({ error: "Discord отклонил авторизацию. Попробуйте войти ещё раз." }, 401, cors);
+      }
+
+      const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+        headers: { "Authorization": "Bearer " + tokenData.access_token }
+      });
+      const user = await userResponse.json().catch(() => ({}));
+      if (!userResponse.ok || !user.id) {
+        return json({ error: "Не удалось получить профиль Discord." }, 502, cors);
+      }
+
+      const avatar = user.avatar
+        ? cleanAvatar("https://cdn.discordapp.com/avatars/" + encodeURIComponent(user.id) + "/" + encodeURIComponent(user.avatar) + ".png?size=64")
+        : "https://cdn.discordapp.com/embed/avatars/0.png";
+      return json({
+        ok: true,
+        name: cleanText(user.global_name || user.username || "Игрок", 24) || "Игрок",
+        av: avatar
+      }, 200, cors);
+    }
+
     if (url.pathname === "/api/create") {
       const body = await readJsonBody(request);
       if (body.error) return json({ error: body.error }, body.status, cors);
