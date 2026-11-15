@@ -1,0 +1,168 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Бункер</title>
+<style>
+:root{--bg:#f6f5f1;--fg:#1c1c1a;--cd:#fff;--bd:#d9d6cc;--ac:#b4501f;--mu:#78756c;--ok:#2e7d32;--bad:#c62828;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171715;--fg:#ecebe4;--cd:#232320;--bd:#3a3935;--ac:#e8854f;--mu:#9a978c;--ok:#66bb6a;--bad:#ef6c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171715;--fg:#ecebe4;--cd:#232320;--bd:#3a3935;--ac:#e8854f;--mu:#9a978c;--ok:#66bb6a;--bad:#ef6c6c;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,sans-serif}
+#app{max-width:1400px;margin:0 auto;padding:12px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:0 0 12px}
+h1,h2,h3{margin:0 0 8px}label{display:block;margin:8px 0;color:var(--mu)}
+input,select,textarea{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+input[type=checkbox]{display:inline;width:auto;margin-right:6px}input[type=number]{width:80px}
+button{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:6px 10px;margin:2px;font:inherit;cursor:pointer}
+button.g{background:transparent;color:var(--fg);border:1px solid var(--bd)}button.on{outline:2px solid var(--ok)}
+.mu{color:var(--mu)}.err{color:var(--bad);font-weight:600}.w{overflow-x:auto}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--bd);padding:6px;vertical-align:top;min-width:96px;font-size:14px}
+th{background:var(--cd);position:sticky;top:0}td:first-child,th:first-child{position:sticky;left:0;background:var(--cd);min-width:120px}
+.dim{color:var(--mu);font-style:italic}.out td{opacity:.45;text-decoration:line-through}.sp{border:1px solid var(--ac);border-radius:6px;padding:6px;margin:4px 0}
+.ov{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}.ov .card{max-width:360px;width:100%}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.v{font-size:20px;font-weight:700}
+</style></head><body><div id="app">Загрузка…</div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" onerror="var s=document.createElement('script');s.src='peerjs.min.js';document.head.append(s)"></script>
+<script>
+const K=[['gender','Пол'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
+const L0={gender:'Мужчина|Женщина',body:'Худощавое|Атлетичное|Полное',trait:'Лидер|Трус|Добряк',job:'Врач|Инженер|Повар',health:'Здоров|Астма|Диабет',hobby:'Шахматы|Охота|Гитара',fear:'Темнота|Пауки|Замкнутое пространство',inv1:'Генератор|Палатка',inv2:'Аптечка|Нож|Рация',extra:'Умеет водить вертолёт|Бесплоден',spec:'Поменяйте Здоровье любого игрока на случайное|Избегите выбывания в одном голосовании'};
+const DEF={name:'Стандартный (пример)',story:['Ядерная война. Бункер рассчитан на год жизни без связи с поверхностью. Дверь повреждена.'],lists:Object.fromEntries(Object.entries(L0).map(([k,v])=>[k,v.split('|')])),q:[{t:'Есть ли возможность продолжить род?',need:'y'},{t:'Починена ли дверь в бункер?',need:'y'}]};
+let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,peer=null,conn=null,conns=[],mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
+try{S.name=localStorage.getItem('bn')||''}catch(e){}
+const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
+uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
+const mg=(a,b)=>{for(const k in b){const v=b[k];if(v&&typeof v==='object'&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=='object')a[k]={};mg(a[k],v)}else a[k]=v}return a};
+const $=document.getElementById('app');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
+const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(conn&&conn.open)conn.send({t:'u',d});else{S.err='Нет соединения с хостом';render()}};
+const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
+const gm=()=>R&&R.gm===uid;
+function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
+
+function loadSets(){S.sets=ls('bsets')||[];render()}
+function bc(){ls('bh',{code:rid,R});conns=conns.filter(c=>c.open);conns.forEach(c=>c.send({t:'s',R}))}
+function closeNet(){try{peer&&peer.destroy()}catch(e){}peer=null;conn=null;conns=[];isHost=false}
+function hostConn(c){c.on('data',m=>{if(m.t==='join'){if(R.status!=='lobby'&&!R.players[m.uid]){c.send({t:'err',e:'Игра уже идёт'});return}c.uid=m.uid;conns.push(c);mg(R,{players:{[m.uid]:{name:m.name}}});bc();render()}else if(m.t==='u'&&c.uid){mg(R,m.d);bc();render()}})}
+function startHost(code,st){if(!window.Peer){S.err='Не загрузилась библиотека PeerJS: проверьте интернет и обновите страницу';return render()}
+ closeNet();isHost=true;rid=code;R=st;peer=new Peer('bunker26-'+code);
+ peer.on('open',()=>{S.scr='room';S.err='';bc();render()});peer.on('connection',hostConn);peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
+ peer.on('error',e=>{S.err=e.type==='unavailable-id'?'Этот код ещё занят, подождите минуту и повторите':'Ошибка соединения: '+(e.type||e);render()})}
+function joinRoom(code){if(!window.Peer){S.err='Не загрузилась библиотека PeerJS: проверьте интернет и обновите страницу';return render()}
+ closeNet();S.err='Подключаемся…';render();peer=new Peer();
+ peer.on('open',()=>{const c=conn=peer.connect('bunker26-'+code,{reliable:true});
+  c.on('open',()=>c.send({t:'join',uid,name:S.name.trim()}));
+  c.on('data',m=>{if(m.t==='s'){R=m.R;rid=code;isHost=false;S.scr='room';S.err='';render()}else if(m.t==='err'){S.err=m.e;render()}});
+  c.on('close',()=>{if(conn===c&&S.scr==='room'){S.err='Соединение с хостом потеряно. Выйдите и зайдите снова.';render()}})});
+ peer.on('error',e=>{S.err=e.type==='peer-unavailable'?'Комната не найдена (хост должен быть онлайн)':'Не удалось подключиться: '+(e.type||e);render()});
+ setTimeout(()=>{if(S.scr!=='room'&&S.err==='Подключаемся…'){S.err='Нет ответа. Проверьте код и связь.';render()}},12000)}
+
+function cell(id,k){const c=R.chars[id][k],mine=id===uid,g=gm(),end=R.status==='end';let h,b='';
+ if(c.o)h=`<b>${esc(c.v)}</b>`+(k==='spec'?(c.u?' ✔':' ⚡'):'');else if(mine||(g&&peek))h=`<span class=dim>${esc(c.v)}</span>`;else h='🔒';
+ if(mine&&!c.o&&!R.out[id]){if(k==='spec')b=`<br><button data-a=spec data-i="${id}">Активировать</button>`;else if(end||(R.phase==='reveal'&&!R.shown?.[R.n]?.[id]))b=`<br><button data-a=rev data-k=${k}>Открыть</button>`}
+ if(g&&edit)b+=`<br><button class=g data-a=rr data-i="${id}" data-k=${k}>🎲</button><button class=g data-a=ed data-i="${id}" data-k=${k}>✎</button><button class=g data-a=sw data-i="${id}" data-k=${k}>⇄</button><button class=g data-a=tg data-i="${id}" data-k=${k}>👁</button>`;
+ return `<td>${h}${b}</td>`}
+
+function table(){const ids=Object.keys(R.chars),g=gm(),vt=R.votes?.[R.n]||{};
+ const rows=ids.map(id=>{const out=R.out[id],cnt=Object.values(vt).filter(x=>x===id).length;let a='';
+  if(R.status==='play'&&R.phase==='vote'&&!out&&!R.out[uid]&&R.chars[uid]&&id!==uid)a+=`<button class="${vt[uid]===id?'on':''}" data-a=vote data-i="${id}">${vt[uid]===id?'✔ Ваш голос':'Голосовать'}</button>`;
+  if(g)a+=out?`<button class=g data-a=back data-i="${id}">↩ Вернуть</button>`:`<button class=g data-a=out data-i="${id}">Выбыл</button>`;
+  const vs=g?Object.keys(vt).filter(v=>vt[v]===id).map(v=>R.players[v]?.name).join(', '):'';
+  return `<tr class="${out?'out':''}"><td><b>${esc(R.players[id]?.name)}</b>${id===R.gm?' 🎙':''}${id===uid?' (вы)':''}${R.phase==='vote'&&cnt?`<br>🗳 ${cnt}${vs?' ← '+esc(vs):''}`:''}</td>${K.map(([k])=>cell(id,k)).join('')}<td>${a}</td></tr>`}).join('');
+ return `<div class=w><table><tr><th>Игрок</th>${K.map(k=>`<th>${k[1]}</th>`).join('')}<th></th></tr>${rows}</table></div>`}
+
+function banner(g){const ph=R.phase;
+ if(ph==='choose')return g?`<b>Выберите тему раунда:</b> <button data-a=ph data-k=reveal>Показ характеристик</button><button data-a=ph data-k=vote>Голосование на выбывание</button>`:'Ведущий выбирает тему раунда…';
+ if(ph==='reveal'){const n=Object.keys(R.shown?.[R.n]||{}).filter(i=>!R.out[i]).length;return `<b>Показ характеристик.</b> Показали: ${n}/${al().length}. Откройте одну характеристику в своей строке. `+(g?'<button data-a=endr>Все показали — дальше</button>':'')}
+ const n=Object.keys(R.votes?.[R.n]||{}).length;return `<b>Голосование.</b> Проголосовали: ${n}/${al().length}. `+(g?'<button class=g data-a=none>Никто не выбыл</button> Проигравшего отметьте кнопкой «Выбыл».':'')}
+
+function endPanel(g){const qs=R.set.q||[],an=R.ans||{},done=qs.every((x,i)=>an[i]),ok=qs.every((x,i)=>an[i]===x.need);
+ const bad=qs.filter((x,i)=>an[i]!==x.need).map(x=>x.t);
+ return `<div class=card><h3>Финал</h3><p>В бункере остались: <b>${esc(al().map(i=>R.players[i].name).join(', ')||'никто')}</b></p>
+ ${R.chars[uid]?'<button data-a=all>Открыть все мои характеристики</button>':''}${g?'<button class=g data-a=allall>Открыть всё у всех</button>':''}
+ <h3>Вопросы ведущему</h3>${qs.map((x,i)=>`<p>${esc(x.t)} ${g?`<button class="${an[i]==='y'?'on':'g'}" data-a=ans data-i=${i} data-k=y>Да</button><button class="${an[i]==='n'?'on':'g'}" data-a=ans data-i=${i} data-k=n>Нет</button>`:`<b>${an[i]==='y'?'Да':an[i]==='n'?'Нет':'…'}</b>`}</p>`).join('')||'<p class=mu>Вопросов в наборе нет</p>'}
+ ${done&&qs.length?`<p class="v ${ok?'ok':'bad'}">${ok?'✅ Выжившие смогли выжить в бункере!':'☠ Выжившие не смогли выжить.'}</p>${ok?'':`<p class=mu>Не выполнено: ${esc(bad.join('; '))}</p>`}`:''}</div>`}
+
+function game(){const g=gm(),end=R.status==='end';
+ const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>`<div class=sp>⚡ <b>${esc(R.players[i].name)}</b> активирует способность: ${esc(R.chars[i].spec.v)} ${g?`<button data-a=done data-i="${i}">Выполнено</button>`:''}</div>`).join('');
+ return `<div class=card><b>Сюжет:</b> ${esc(R.story)}<br><span class=mu>Цель: выжить должны ${R.surv}</span></div>
+ ${end?'':`<div class=card>${banner(g)}</div>`}${sp}
+ ${g?`<p><label style="display:inline"><input type=checkbox data-a=peek ${peek?'checked':''}>Подсмотреть скрытое</label> <label style="display:inline"><input type=checkbox data-a=edit ${edit?'checked':''}>Режим правок (🎲 случайное, ✎ вручную, ⇄ обмен, 👁 открыть/скрыть)</label> ${end?'':'<button class=g data-a=fin>Завершить игру</button>'}</p>`:''}
+ ${table()}${end?endPanel(g):''}`}
+
+function lobby(){const g=gm(),ids=Object.keys(R.players);
+ return `<div class=card><h3>Игроки (${ids.length})</h3>${ids.map(i=>`<p>${esc(R.players[i].name)}${i===R.gm?' 🎙 ведущий':''} ${g&&i!==R.gm?`<button class=g data-a=setgm data-i="${i}">Сделать ведущим</button>`:''}</p>`).join('')}
+ <p class=mu>Код комнаты <b>${rid}</b> — друзья вводят его на главной странице.</p>
+ <label><input type=checkbox data-a=gmp ${R.gmPlays?'checked':''} ${g?'':'disabled'}>Ведущий тоже играет</label>
+ <label>Сколько должно остаться в финале <input type=number min=1 value="${R.surv}" data-a=surv ${g?'':'disabled'}></label>
+ <p class=mu>Набор: ${esc(R.set.name)}</p>${g?'<button data-a=start>Начать игру</button>':'<p>Ждём, пока ведущий начнёт…</p>'}</div>`}
+
+function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class=g data-a=leave>На главную</button></p>`;
+ return `<p><b>Комната ${rid}</b> · Ведущий: ${esc(R.players[R.gm]?.name)} <button class=g data-a=leave>Выйти</button></p>`+(R.status==='lobby'?lobby():game())}
+
+function home(){return `<div class=card><h1>Бункер</h1><label>Ваше имя<input id=name value="${esc(S.name)}"></label></div>
+<div class=card><h3>Создать комнату</h3><label>Набор<select id=pick><option value=def>${esc(DEF.name)}</option>${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
+<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=4 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
+<div class=card><h3>Наборы</h3>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
+
+function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
+<label>Название<input id=e_name value="${esc(e.name)}"></label>
+<p class=mu>В каждое поле — по одному варианту на строку (количество не ограничено). Варианты сюжета разделяйте строкой <code>---</code>. При старте игрокам выпадают случайные варианты.</p>
+<label>Сюжет (начальная страница партии)<textarea id=e_story rows=6>${esc(e.story)}</textarea></label>
+${K.map(([k,n])=>`<label>${n}<textarea id=e_${k} rows=4>${esc(e.lists[k]||'')}</textarea></label>`).join('')}
+<label>Вопросы финала, формат «Вопрос | да» или «Вопрос | нет» — какой ответ нужен, чтобы выжить<textarea id=e_q rows=5>${esc(e.q)}</textarea></label>
+<button data-a=save>Сохранить</button>${e.id?'<button class=g data-a=delset>Удалить набор</button>':''}</div>`}
+
+function render(){const v=S.scr==='home'?home():S.scr==='ed'?editor():room();$.innerHTML=(S.err?`<p class=err>${esc(S.err)}</p>`:'')+v}
+
+async function act(t){const a=t.dataset.a,i=t.dataset.i,k=t.dataset.k,c=R&&R.chars,me=uid;S.err='';
+try{switch(a){
+case 'home':S.scr='home';S.err='';render();break;
+case 'leave':closeNet();R=null;S.scr='home';render();break;
+case 'new':S.ed={id:null,name:'',story:'',lists:{},q:''};S.scr='ed';render();break;
+case 'edit1':{const s=S.sets.find(x=>x.id===i);S.ed={id:i,name:s.name,story:(s.story||[]).join('\n---\n'),lists:Object.fromEntries(K.map(([k])=>[k,(s.lists?.[k]||[]).join('\n')])),q:(s.q||[]).map(x=>x.t+' | '+(x.need==='n'?'нет':'да')).join('\n')};S.scr='ed';render();break}
+case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y=>y.trim()).filter(Boolean);
+ const d={name:V('e_name').trim()||'Без названия',ownerId:me,story:V('e_story').split(/^\s*---\s*$/m).map(x=>x.trim()).filter(Boolean),lists:Object.fromEntries(K.map(([k])=>[k,ln(V('e_'+k))])),q:ln(V('e_q')).map(l=>{const[x,n]=l.split('|');return{t:x.trim(),need:/нет/i.test(n||'')?'n':'y'}})};
+ const id=S.ed.id||'s'+Date.now().toString(36),l=(ls('bsets')||[]).filter(x=>x.id!==id);l.push({id,...d});ls('bsets',l);S.scr='home';loadSets();break}
+case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='home';loadSets();break;
+case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
+ const p=$.querySelector('#pick').value,s0=p==='def'?DEF:S.sets.find(x=>x.id===p),s={name:s0.name,story:s0.story,lists:s0.lists,q:s0.q||[]};
+ const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
+ startHost(code,{host:me,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim()}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
+case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
+ joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
+case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
+case 'imp':{const f=t.files[0];if(!f)break;const l=JSON.parse(await f.text()),cur=ls('bsets')||[];l.forEach(x=>{const j=cur.findIndex(y=>y.id===x.id);j<0?cur.push(x):cur[j]=x});ls('bsets',cur);loadSets();break}
+case 'rest':{const h=ls('bh');startHost(h.code,h.R);break}
+case 'setgm':upd({gm:i});break;
+case 'gmp':upd({gmPlays:t.checked});break;
+case 'surv':upd({surv:Math.max(1,+t.value||1)});break;
+case 'start':{const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};
+ K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
+ const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{ch[id][k]={v:pl[k][n%pl[k].length],o:0}})});
+ upd({status:'play',chars:ch,story:pick(s.story),phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))});break}
+case 'peek':peek=t.checked;render();break;
+case 'edit':edit=t.checked;render();break;
+case 'ph':upd({phase:k,n:R.n+1});break;
+case 'endr':upd({phase:'choose'});break;
+case 'none':upd({phase:'choose'});break;
+case 'rev':upd({chars:{[me]:{[k]:{o:1}}},shown:{[R.n]:{[me]:true}}});break;
+case 'spec':upd({chars:{[i]:{spec:{o:1}}}});break;
+case 'done':upd({chars:{[i]:{spec:{u:1}}}});break;
+case 'vote':upd({votes:{[R.n]:{[me]:i}}});break;
+case 'out':{const left=al().filter(x=>x!==i).length;upd({out:{[i]:true},phase:R.phase==='vote'?'choose':R.phase,status:left<=R.surv?'end':R.status});break}
+case 'back':upd({out:{[i]:false}});break;
+case 'fin':upd({status:'end'});break;
+case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
+case 'allall':upd({chars:Object.fromEntries(Object.keys(c).map(id=>[id,Object.fromEntries(K.map(([k])=>[k,{o:1}]))]))});break;
+case 'ans':upd({ans:{[i]:k}});break;
+case 'rr':upd({chars:{[i]:{[k]:{v:pick(R.set.lists?.[k])}}}});break;
+case 'ed':{const v=await ask('Новое значение',c[i][k].v);if(v!==null)upd({chars:{[i]:{[k]:{v}}}});break}
+case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name]);if(!o.length)break;const j=await ask('Поменять местами с игроком:',0,o);if(j)upd({chars:{[i]:{[k]:{v:c[j][k].v}},[j]:{[k]:{v:c[i][k].v}}}});break}
+case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
+}}catch(e){S.err='Ошибка: '+(e.message||e.code||e);render()}}
+
+document.addEventListener('click',e=>{const t=e.target.closest('button[data-a]');t&&act(t)});
+document.addEventListener('change',e=>{const t=e.target.closest('input[data-a],select[data-a]');t&&act(t)});
+document.addEventListener('input',e=>{if(e.target.id==='name'){S.name=e.target.value;try{localStorage.setItem('bn',S.name)}catch(x){}}});
+
+loadSets();
+</script></body></html>
