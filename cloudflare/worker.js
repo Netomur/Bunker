@@ -786,20 +786,18 @@ export class Room {
       }
     }
 
-    if (uid !== room.gm) {
-      const votes = {};
-      for (const [round, roundVotes] of Object.entries(room.votes || {})) {
-        if (room.vdone?.[round]) {
-          votes[round] = structuredClone(roundVotes);
-        } else {
-          votes[round] = {};
-          for (const [voter, target] of Object.entries(roundVotes || {})) {
-            votes[round][voter] = voter === uid ? target : "?";
-          }
+    const votes = {};
+    for (const [round, roundVotes] of Object.entries(room.votes || {})) {
+      if (room.vdone?.[round]) {
+        votes[round] = structuredClone(roundVotes);
+      } else {
+        votes[round] = {};
+        for (const [voter, target] of Object.entries(roundVotes || {})) {
+          votes[round][voter] = voter === uid ? target : "?";
         }
       }
-      view.votes = votes;
     }
+    view.votes = votes;
     return view;
   }
 
