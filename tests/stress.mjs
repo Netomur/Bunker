@@ -95,7 +95,7 @@ wss.on('connection', (ws) => {
       return;
     }
     if (msg.type === 'publish' && typeof msg.topic === 'string') {
-      try { const parsed = JSON.parse(String(msg.payload ?? '')); if (parsed.t === 'join' || parsed.t === 'err') brokerEvents.push({ broker: client.broker, topic: msg.topic, messageType: parsed.t, uid: parsed.uid, error: parsed.e }); } catch {}
+      try { const parsed = JSON.parse(String(msg.payload ?? '')); if (parsed.t === 'join' || parsed.t === 'err') brokerEvents.push({ broker: client.broker, topic: msg.topic, messageType: parsed.t, uid: parsed.uid, error: parsed.e, receivers: [...sockets].filter(s => s !== client && s.broker === client.broker && s.subscriptions.has(msg.topic)).length }); } catch {}
       const packet = JSON.stringify({ type: 'message', topic: msg.topic, payload: String(msg.payload ?? '') });
       for (const target of sockets) {
         if (target !== client && target.broker === client.broker &&
@@ -344,6 +344,9 @@ async function scenarioKickAndBan() {
     await waitBody(kicked.page, 'Вас нет в списке игроков', 15000);
     await click(kicked.page, 'button[data-a=leave]');
     await kicked.page.locator('#code').fill(code);
+    const enteredCode = await kicked.page.locator('#code').inputValue();
+    const codeAcceptedByUi = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(enteredCode);
+    if (!codeAcceptedByUi) throw new Error('Test supplied invalid room code: ' + JSON.stringify({ code, enteredCode }));
     await click(kicked.page, 'button[data-a=join]');
     await waitBody(kicked.page, 'Ведущий исключил вас из комнаты', 15000).catch(async (error) => {
       const guestStored = await kicked.page.evaluate(() => {
@@ -354,7 +357,7 @@ async function scenarioKickAndBan() {
         let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
         return { ban: saved?.R?.ban || null, players: saved?.R?.players || null };
       });
-      console.log('[KICK DEBUG]', JSON.stringify({ guestStored, hostStored, brokerEvents: brokerEvents.slice(-30) }));
+      console.log('[KICK DEBUG]', JSON.stringify({ code, enteredCode, guestStored, hostStored, brokerEvents: brokerEvents.slice(-40) }));
       throw error;
     });
     await closePlayers(players);
@@ -405,6 +408,13 @@ async function scenarioHostFailover() {
     const successor = players.slice(1).sort((a, b) => a.uid.localeCompare(b.uid))[0];
     await waitBody(successor.page, 'Прежний хост пропал', 70000);
     const canControl = await successor.page.locator('button[data-a=fin]').count();
+    if (canControl === 0) {
+      const state = await successor.page.evaluate(() => {
+        let saved = null; try { saved = JSON.parse(localStorage.getItem('bh')); } catch {}
+        return { savedGM: saved?.R?.gm, savedHid: saved?.R?.hid, status: saved?.R?.status, body: document.body.innerText };
+      });
+      console.log('[FAILOVER DEBUG]', JSON.stringify({ oldHost: players[0].uid, oldGM: players[0].uid, successor: successor.uid, candidates: players.slice(1).map(p=>p.uid), state }));
+    }
     assert(canControl > 0, 'Successor inherited network hosting but not game-leading permissions');
 
     await closePlayers(players.slice(1));
