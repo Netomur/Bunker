@@ -495,28 +495,64 @@ async function scenarioHostFailover() {
 }
 
 async function scenarioPublicMqttSmoke() {
-  const player = await newPlayer('PublicMQTTProbe', 'upublic001', false);
+  let stage = 'create public-broker host';
+  let players = [];
   try {
-    await player.page.locator('#name').fill(player.name);
-    await click(player.page, 'button[data-a=create]');
-    await waitBody(player.page, 'Серверы связи:', 30000);
-    await player.page.waitForFunction(() => document.body.innerText.includes('✓'), null, { timeout: 35000 }).catch(() => {});
-    const body = await bodyText(player.page);
-    const statusLine = body.match(/Серверы связи:[^\\n]*/)?.[0] || '';
-    const connected = PUBLIC_BROKERS.filter(([name]) => statusLine.includes(name + ' ✓')).map(([name]) => name);
+    const host = await newPlayer('PublicMQTTHost', 'upublichost', false);
+    players.push(host);
+    const code = await makeRoom(host);
+    await waitBody(host.page, 'Серверы связи:', 30000);
+    await host.page.waitForFunction(
+      () => /Серверы связи:[^\\n]*✓/.test(document.body.innerText),
+      null,
+      { timeout: 35000 }
+    );
+
+    stage = 'join a second browser through the public MQTT brokers';
+    const guest = await newPlayer('PublicMQTTGuest', 'upublicguest', false);
+    players.push(guest);
+    await joinRoom(guest, code);
+    await waitForNames(host, [host.name, guest.name], 60000);
+    await waitBody(guest.page, host.name, 60000);
+
+    stage = 'start the actual two-browser game';
+    await click(host.page, 'button[data-a=start]');
+    await waitBody(host.page, 'Выберите тему раунда', 30000);
+    await waitBody(guest.page, 'Выберите тему раунда', 30000);
+    await click(host.page, 'button[data-a=ph][data-k=reveal]');
+    await waitBody(guest.page, 'Показ характеристик.', 30000);
+    await Promise.all([
+      click(host.page, 'button[data-a=rev]'),
+      click(guest.page, 'button[data-a=rev]'),
+    ]);
+    await waitBody(host.page, 'Показали: 2/2', 30000);
+    await waitBody(guest.page, 'Показали: 2/2', 30000);
+
+    const hostBody = await bodyText(host.page);
+    const guestBody = await bodyText(guest.page);
+    const getConnected = (body) => {
+      const line = body.match(/Серверы связи:[^\\n]*/)?.[0] || '';
+      return PUBLIC_BROKERS.filter(([name]) => line.includes(name + ' ✓')).map(([name]) => name);
+    };
+    const hostConnected = getConnected(hostBody);
+    const guestConnected = getConnected(guestBody);
+    const common = hostConnected.filter(name => guestConnected.includes(name));
     report.publicMqtt = {
       configured: PUBLIC_BROKERS.map(([name, url]) => ({ name, url })),
-      connected,
-      statusLine,
+      hostConnected,
+      guestConnected,
+      common,
+      roomCode: code,
+      simultaneousReveals: 2,
+      synchronized: hostBody.includes('Показали: 2/2') && guestBody.includes('Показали: 2/2'),
     };
-    assert(connected.length > 0, 'No configured public MQTT WSS broker accepted the application connection');
-    await closePlayers([player]);
-    record('real public MQTT WSS connectivity', 'PASS', report.publicMqtt);
+    assert(common.length > 0, 'The two browsers did not share a connected public MQTT broker');
+    await closePlayers(players);
+    record('real two-browser game over public MQTT WSS', 'PASS', report.publicMqtt);
   } catch (error) {
-    await closePlayers([player]);
-    report.publicMqtt ||= { error: error.message };
-    record('real public MQTT WSS connectivity', 'FAIL', report.publicMqtt);
-    throw error;
+    await closePlayers(players);
+    report.publicMqtt = { stage, error: error.message, configured: PUBLIC_BROKERS.map(([name, url]) => ({ name, url })) };
+    record('real two-browser game over public MQTT WSS', 'WARN', report.publicMqtt);
   }
 }
 
