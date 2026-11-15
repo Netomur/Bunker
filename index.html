@@ -276,14 +276,14 @@ function sett(){const P=['#c2571a','#d4a017','#2e8b57','#2a7fd4','#8e44ad','#d63
 <p><button class=g data-a=rst>Сбросить настройки</button></p></div>`}
 function showTip(e){const i=e.target.closest&&e.target.closest('.i');if(!i){tip.style.display='none';return}tip.textContent=i.dataset.h;tip.style.display='block';const r=i.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(innerWidth-tip.offsetWidth-8,r.left-20))+'px';tip.style.top=(r.bottom+6+tip.offsetHeight>innerHeight?r.top-tip.offsetHeight-6:r.bottom+6)+'px'}
 async function dcInit(){
- const params=new URLSearchParams(location.search),code=params.get('code'),state=params.get('state');
+ const params=new URLSearchParams(location.search),code=params.get('code'),state=params.get('state'),issuer=params.get('iss');
  if(code){
   const expected=sessionStorage.getItem('bunker-discord-state');
   const verifier=sessionStorage.getItem('bunker-discord-verifier');
   sessionStorage.removeItem('bunker-discord-state');
   sessionStorage.removeItem('bunker-discord-verifier');
   history.replaceState(null,'',location.pathname);
-  if(!expected||state!==expected||!verifier){
+  if(!expected||state!==expected||!verifier||issuer!=='https://discord.com'){
    S.err='Проверка авторизации Discord не пройдена. Можно продолжить с обычным именем.';
   }else{
    try{
