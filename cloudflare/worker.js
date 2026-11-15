@@ -14,6 +14,10 @@ const CHARACTER_KEYS = [
   "hobby", "fear", "inv1", "inv2", "extra", "spec"
 ];
 const PARAM_KEYS = ["gender", "body", "job", "hobby"];
+const GAME_PATCH_KEYS = new Set([
+  "players", "ban", "gm", "gmPlays", "surv", "status", "chars",
+  "out", "votes", "vdone", "phase", "n", "ans"
+]);
 const JOIN_ATTEMPTS = new Map();
 const CREATE_ATTEMPTS = new Map();
 
