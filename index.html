@@ -282,7 +282,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
 const live=()=>!!ws&&ws.readyState===1;
-const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',d,id:uid+':'+(++sn)})}else{S.err='Нет соединения с серверами связи';render()}};
+const upd=d=>{if(live()){mg(R,d);render();pub('h',{t:'u',d,id:uid+':'+(++sn)})}else{S.err='Нет соединения с облачным сервером';render()}};
 const SX={gender:['Возраст','лет',1],body:['Рост','см',1],job:['Мастерство'],hobby:['Мастерство']};
 const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const yrs=n=>{const a=n%100,b=n%10;return n+(a>10&&a<15?' лет':b===1?' год':b>1&&b<5?' года':' лет')};
@@ -507,7 +507,7 @@ case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
 case 'gmp':upd({gmPlays:t.checked});break;
 case 'surv':upd({surv:Math.max(1,+t.value||1)});break;
-case 'start':if(isHost)doStart();else if(live())pub('h',{t:'start',id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'start':if(live())pub('h',{t:'start',id:uid+':'+(++sn)});else{S.err='Нет соединения с облачным сервером';render()}break;
 case 'peek':peek=t.checked;render();break;
 case 'edit':edit=t.checked;render();break;
 case 'ph':upd({phase:k,n:R.n+1});break;
@@ -524,7 +524,7 @@ case 'fin':upd({status:'end'});break;
 case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
 case 'allall':upd({chars:Object.fromEntries(Object.keys(c).map(id=>[id,Object.fromEntries(K.map(([k])=>[k,{o:1}]))]))});break;
 case 'ans':upd({ans:{[i]:k}});break;
-case 'rr':if(isHost)upd({chars:{[i]:{[k]:rollKey(k,i)}}});else if(live())pub('h',{t:'rr',i,k,id:uid+':'+(++sn)});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'rr':if(live())pub('h',{t:'rr',i,k,id:uid+':'+(++sn)});else{S.err='Нет соединения с облачным сервером';render()}break;
 case 'ed':{const v=await ask('Новое значение (подсказку пишите в [ ])',c[i][k].v+(c[i][k].h?' ['+c[i][k].h+']':''));if(v!==null){const p=sp(v);upd({chars:{[i]:{[k]:{v:p.v,h:p.h}}}})}break}
 case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name]);if(!o.length)break;const j=await ask('Поменять местами с игроком:',0,o);if(j)upd({chars:{[i]:{[k]:{v:c[j][k].v,h:c[j][k].h||''}},[j]:{[k]:{v:c[i][k].v,h:c[i][k].h||''}}}});break}
 case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
