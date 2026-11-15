@@ -216,10 +216,14 @@ async function answerAll(page, failCritical = false) {
   const count = await page.locator('button[data-a=ans][data-k=y]').count();
   assert(count >= 8, 'Expected built-in final questions, found ' + count);
   if (failCritical) {
-    await page.locator('button[data-a=ans][data-k=n]').first().click();
-    for (let i = 1; i < count; i++) await page.locator('button[data-a=ans][data-k=y]').first().click();
+    await click(page, 'button[data-a=ans][data-k=n][data-i="0"]');
+    for (let i = 1; i < count; i++) {
+      await click(page, 'button[data-a=ans][data-k=y][data-i="' + i + '"]');
+    }
   } else {
-    for (let i = 0; i < count; i++) await page.locator('button[data-a=ans][data-k=y]').first().click();
+    for (let i = 0; i < count; i++) {
+      await click(page, 'button[data-a=ans][data-k=y][data-i="' + i + '"]');
+    }
   }
 }
 
