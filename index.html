@@ -172,7 +172,7 @@ const RULES=`<div class=rl>
 <h3>Как начать</h3>
 <ul>
 <li>Введите имя или войдите через Discord. Авторизация необязательна.</li>
-<li>Создайте комнату, выберите набор «Стандартный» и отправьте друзьям <b>8-значный код</b>.</li>
+<li>Создайте комнату, выберите набор «Стандартный» и отправьте друзьям <b>8-символьный код</b>.</li>
 <li>Остальные участники вводят этот код в поле «Войти в комнату».</li>
 <li>В комнате может быть до 16 участников. Ведущий запускает игру, когда все готовы.</li>
 </ul>
@@ -523,7 +523,7 @@ function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class
 
 function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
 <div class=card><h3>Создать комнату</h3><p class=mu>${window.BUNKER_API_BASE?'Подключён бесплатный облачный сервер.':'Сетевой сервер ещё не настроен: после его бесплатной публикации игра будет работать через Cloudflare.'}</p><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${s.id}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button></div>
-<div class=card><h3>Войти в комнату</h3><input id=code placeholder="8-значный код комнаты" maxlength=8 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
+<div class=card><h3>Войти в комнату</h3><input id=code placeholder="8-символьный код комнаты" maxlength=8 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
 <div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
 
 function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
