@@ -578,11 +578,25 @@ export class Room {
     }
     const room = await this.state.storage.get("room");
     if (!room) return new Response("Room not found", { status: 404 });
-    const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
+
+    const active = this.state.getWebSockets();
+    if (active.length >= 32) {
+      return new Response("Room connection limit reached", { status: 429 });
+    }
+
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    const ipHash = await hashToken(ip);
+    const sameIp = active.filter(socket => {
+      const attachment = socket.deserializeAttachment() || {};
+      return attachment.ipHash === ipHash;
+    }).length;
+    if (sameIp >= 6) {
+      return new Response("Too many connections from this network", { status: 429 });
+    }
+
+    const [client, server] = Object.values(new WebSocketPair());
     this.state.acceptWebSocket(server);
-    server.serializeAttachment({ uid: null });
+    server.serializeAttachment({ uid: null, ipHash });
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -617,7 +631,7 @@ export class Room {
         ws.close(1008, "Invalid session");
         return;
       }
-      ws.serializeAttachment({ uid: data.uid });
+      ws.serializeAttachment({ uid: data.uid, ipHash: attachment.ipHash || '' });
       ws.send(JSON.stringify({ t: "auth", ok: true }));
       ws.send(JSON.stringify({ t: "s", R: this.viewFor(room, data.uid) }));
       await this.touch();
