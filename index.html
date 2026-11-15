@@ -81,7 +81,7 @@ th{font-weight:700;letter-spacing:.2px}
 .score-bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 7%,var(--cd))}
 @media(max-width:640px){#app{padding:12px 10px 28px}.hero{border-radius:14px}.card{padding:14px}.home-headline{align-items:flex-start;flex-direction:column}.home-tools{width:100%}.env-grid{grid-template-columns:1fr}}
 </style></head><body><div id="app">Загрузка…</div>
-<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" onerror="var s=document.createElement('script');s.src='mqtt.min.js';document.head.append(s)"></script>
+<script src="cloudflare-config.js"></script>
 <script>
 const DISCORD_CLIENT_ID='1571591321150431262';
 const VER='15.11.2026';
@@ -150,11 +150,10 @@ const DEF={
  ]
 };
 const BUILTIN=[DEF];
-let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,B=[],NET={},seen=new Set(),sn=0,jt=null,hbt=null,bt=0,mt=null,lastSt=Date.now(),myV={},mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
+let uid='',R=null,rid=null,peek=false,edit=false,isHost=false,ws=null,NET={},seen=new Set(),sn=0,jt=null,hbt=null,bt=0,mt=null,lastSt=Date.now(),myV={},mem={},S={scr:'home',name:'',sets:[],err:'',ed:null};
 try{S.name=localStorage.getItem('bn')||''}catch(e){}
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){if(v===undefined)return mem[k];mem[k]=v}};
 uid=ls('bu')||('u'+Math.random().toString(36).slice(2,10));ls('bu',uid);
-const BR=[['emqx','wss://broker.emqx.io:8084/mqtt'],['hivemq','wss://broker.hivemq.com:8884/mqtt'],['eclipse','wss://mqtt.eclipseprojects.io:443/mqtt'],['mosquitto','wss://test.mosquitto.org:8081/']];
 const mg=(a,b)=>{for(const k in b){const v=b[k];if(v===null){delete a[k];continue}if(v&&typeof v==='object'&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=='object')a[k]={};mg(a[k],v)}else a[k]=v}return a};
 const $=document.getElementById('app');
 const tip=document.createElement('div');tip.id='tip';document.body.append(tip);
@@ -278,11 +277,11 @@ async function dcInit(){try{const t=new URLSearchParams(location.hash.slice(1)).
  if(t){history.replaceState(null,'',location.pathname+location.search);const u=await(await fetch('https://discord.com/api/users/@me',{headers:{Authorization:'Bearer '+t}})).json();
   if(u.id)ls('bdc',{id:u.id,name:u.global_name||u.username,av:u.avatar?`https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`:`https://cdn.discordapp.com/embed/avatars/${Number((BigInt(u.id)>>22n)%6n)}.png`})}}
  catch(e){S.err='Не удалось войти через Discord (возможно, он недоступен без VPN). Можно ввести имя вручную.'}
- const d=ls('bdc');if(d&&d.id){S.dc=d;S.name=d.name;uid='d'+d.id}}
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const d=ls('bdc');if(d&&d.id){S.dc=d;S.name=d.name}}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
-const live=()=>Object.values(NET).includes('ok');
+const live=()=>!!ws&&ws.readyState===1;
 const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',d,id:uid+':'+(++sn)})}else{S.err='Нет соединения с серверами связи';render()}};
 const SX={gender:['Возраст','лет',1],body:['Рост','см',1],job:['Мастерство'],hobby:['Мастерство']};
 const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -295,56 +294,122 @@ function sfx(set,k){const x=set.sx?.[k];if(!x)return'';if(x.e&&Math.random()*100
 const getSx=(V,ln)=>{const sx={};Object.entries(SX).forEach(([k,a])=>{const n=i=>V('e_'+k+'_'+i);sx[k]={list:ln(n('list')),e:Math.min(100,Math.max(0,+n('e')||0))};if(a[2]){sx[k].lo=n('lo')===''?null:+n('lo');sx[k].hi=n('hi')===''?null:+n('hi');sx[k].p=n('p')===''?50:Math.min(100,Math.max(0,+n('p')||0))}});return sx};
 const sxBox=(k,e)=>{const[t,u,rg]=SX[k],x=e.sx?.[k]||{};return `<div class=sp><b>${t}</b> — добавится в скобках после значения${rg?`<div style="display:flex;gap:8px"><label>от (${u})<input type=number id=e_${k}_lo value="${esc(x.lo??'')}"></label><label>до (${u})<input type=number id=e_${k}_hi value="${esc(x.hi??'')}"></label></div>`:''}<label>${rg?'Готовые значения (по одному на строку)':'Варианты мастерства (по одному на строку)'}<textarea id=e_${k}_list rows=3>${esc((x.list||[]).join('\n'))}</textarea></label>${rg?`<label>Шанс выбрать из списка, % (иначе значение берётся из диапазона; работает, когда заполнены и список, и диапазон)<input type=number min=0 max=100 id=e_${k}_p value="${esc(x.p??50)}"></label>`:''}<label>Шанс «Пусто», % (строка «пусто» в списке тоже работает)<input type=number min=0 max=100 id=e_${k}_e value="${esc(x.e??0)}"></label></div>`};
 const my=()=>{const v=R.votes?.[R.n]?.[uid];return v&&v!=='?'?v:myV[R.n]};
-const netTxt=()=>Object.keys(NET).length?`<p class=mu>Серверы связи: ${Object.entries(NET).map(([k,v])=>k+' '+(v==='ok'?'✓':v)).join(' · ')}. Нужен хотя бы один сервер, к которому подключились и вы, и хост.</p>`:'';
+const netTxt=()=>Object.keys(NET).length?`<p class=mu>Облачный сервер: ${NET.cloud==='ok'?'подключён ✓':NET.cloud==='…'?'подключение…':'нет соединения'}. Состояние партии хранится на сервере, вкладку создателя держать открытой не требуется.</p>`:'';
 const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
-function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}
-function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m,{qos:1})}catch(e){}})}
-function view(){return{...R,set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
-function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});clearTimeout(bt);bt=setTimeout(()=>pub('s',{t:'s',R:view()}),100)}
-function rollKey(k,i){if(!R.set.lists){S.err='Набор недоступен после передачи хоста: 🎲 ничего не меняет';const c=R.chars[i][k];return{v:c.v,h:c.h||''}}const l=R.set.lists[k],p=sp(pick(l&&l.length?l:['—']));return{v:p.v+sfx(R.set,k),h:p.h}}
-function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};
- K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
- const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{{const p=sp(pl[k][n%pl[k].length]);ch[id][k]={v:p.v+sfx(s,k),h:p.h,o:0}}})});
- upd({status:'play',chars:ch,story:pick(s.story),env:{size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])},phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))})}
-function closeNet(){clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
-const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
-const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:uid+':'+(++sn)})};
-function stepDown(nr){isHost=false;clearInterval(hbt);B.forEach(b=>{try{b.c.unsubscribe('bk26/'+rid+'/h')}catch(e){}});ls('bh',null);R=nr;S.note='Ведение партии перешло к другому игроку.';resend();render()}
-function takeover(){isHost=true;R.ep=(R.ep||0)+1;R.hid=uid;
- const bs=BUILTIN.find(x=>x.id===R.set?.bid);if(bs)R.set={...bs,bid:bs.id};
- if(R.phase==='vote'&&R.votes&&!R.vdone?.[R.n]){R.votes[R.n]={};if(myV[R.n])R.votes[R.n][uid]=myV[R.n]}
- B.forEach(b=>{try{b.c.connected&&b.c.subscribe('bk26/'+rid+'/h',{qos:1})}catch(e){}});
- clearInterval(hbt);hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);
- S.note='Прежний хост пропал: ведение партии перешло к вам. Не закрывайте эту вкладку.';bc();render()}
-function chk(){if(isHost||!R||!rid||!live())return;const r=Object.keys(R.players).filter(x=>x!==R.hid).sort().indexOf(uid);if(r<0)return;if(Date.now()-lastSt>45000+r*10000)takeover()}
-function onMsg(m){
- if(m.t==='err'){if(m.uid===uid){S.err=m.e;clearInterval(jt);render()}return}
- if(m.t==='s'){lastSt=Date.now();
-  if(isHost){if(m.R.hid!==uid&&newer(m.R,R))stepDown(m.R);return}
-  if(!R||newer(m.R,R)){const f=!R,ne=R&&(m.R.ep||0)>(R.ep||0);R=m.R;clearInterval(jt);if(f)S.scr='room';S.err='';if(ne)resend();render()}
-  return}
- if(!isHost)return;
- if(m.id){if(seen.has(m.id))return;seen.add(m.id)}
- if(m.t==='join'){if(R.ban?.[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Ведущий исключил вас из комнаты'});return}
-  if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}
-  mg(R,{players:{[m.uid]:{name:m.name,av:m.av||''}}});bc();render()}
- else if(m.t==='u'){mg(R,m.d);bc();render()}
- else if(m.t==='start')doStart();
- else if(m.t==='rr'){mg(R,{chars:{[m.i]:{[m.k]:rollKey(m.k,m.i)}}});bc();render()}}
-function net(code,first){if(!window.mqtt){S.err='Не загрузилась библиотека связи: проверьте интернет и обновите страницу';render();return false}
- rid=code;
- B=BR.map(([n,u])=>{NET[n]='…';const c=mqtt.connect(u,{clientId:'bk'+uid+Math.random().toString(36).slice(2,6),connectTimeout:15000,reconnectPeriod:3000});
-  c.on('connect',()=>{NET[n]='ok';lastSt=Date.now();c.subscribe('bk26/'+code+'/s',{qos:1});if(isHost)c.subscribe('bk26/'+code+'/h',{qos:1});render();first&&first()});
-  c.on('close',()=>{NET[n]='✗';render()});c.on('error',()=>{NET[n]='✗'});
-  c.on('message',(t,p)=>{try{onMsg(JSON.parse(p.toString()))}catch(e){}});return{n,c}});clearInterval(mt);mt=setInterval(chk,5000);return true}
-function startHost(code,st){closeNet();isHost=true;R=st;S.scr='room';S.err='';if(!net(code,bc)){S.scr='home';isHost=false;R=null;render()}else{hbt=setInterval(()=>R&&pub('s',{t:'s',R:view()}),12000);render()}}
-function joinRoom(code){closeNet();R=null;if(!code){S.err='Введите код комнаты';return render()}
- const j=()=>pub('h',{t:'join',uid,name:S.name.trim(),av:S.dc?.av||'',id:uid+':'+(++sn)});S.err='Подключаемся…';
- if(!net(code,j))return;render();jt=setInterval(()=>{if(R)clearInterval(jt);else j()},3000);
- setTimeout(()=>{if(!R&&S.err==='Подключаемся…'){S.err='Нет ответа: комната не найдена или нет связи. Проверьте код и что хост онлайн.';render()}},30000)}
+function loadSets(){
+ if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}
+ if(ls('bunker-secure-backend')!=='v1'){ls('bh',null);ls('bunker-secure-backend','v1')}
+ S.sets=ls('bsets')||[];render()
+}
+function apiBase(){
+ const value=String(window.BUNKER_API_BASE||'').trim();
+ if(!value)throw new Error('Облачный сервер ещё не подключён. Сначала нужно развернуть бесплатный сервер из папки cloudflare и указать его адрес в cloudflare-config.js.');
+ let u;try{u=new URL(value)}catch{throw new Error('Неверный адрес облачного сервера. Проверьте cloudflare-config.js.')}
+ if(u.protocol!=='https:'||!u.hostname.endsWith('.workers.dev'))throw new Error('Адрес сервера должен быть HTTPS-адресом Cloudflare Workers (*.workers.dev).');
+ return u.href.replace(/\/$/,'');
+}
+async function apiPost(path,data){
+ const base=apiBase();
+ const response=await fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),cache:'no-store'});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(result.error||('Ошибка облачного сервера: '+response.status));
+ return result;
+}
+function pub(t,o){
+ if(!ws||ws.readyState!==1){S.err='Нет соединения с облачным сервером';render();return}
+ try{ws.send(JSON.stringify(o))}catch(e){S.err='Не удалось отправить действие: '+(e.message||e);render()}
+}
+function receiveSecureMessage(event){
+ let m;try{m=JSON.parse(event.data)}catch{return}
+ if(m.t==='auth'){if(m.ok){NET.cloud='ok';S.err='';render();return}return}
+ if(m.t==='err'){S.err=m.e||'Действие отклонено сервером';render();return}
+ if(m.t==='s'){
+  lastSt=Date.now();R=m.R;
+  if(S.scr==='home')S.scr='room';
+  S.err='';NET.cloud='ok';render();
+ }
+}
+function openSecureSocket(token){
+ return new Promise((resolve,reject)=>{
+  let settled=false,authed=false;
+  const base=apiBase().replace(/^https:/,'wss:');
+  const sock=new WebSocket(base+'/ws/'+rid);
+  ws=sock;NET.cloud='…';render();
+  const finishError=message=>{
+   if(settled)return;settled=true;clearTimeout(timer);
+   reject(new Error(message||'Не удалось подключиться к облачному серверу.'));
+  };
+  const timer=setTimeout(()=>{if(!authed){finishError('Сервер не подтвердил подключение за 15 секунд.');try{sock.close()}catch{}}},15000);
+  sock.addEventListener('open',()=>{
+   try{sock.send(JSON.stringify({type:'auth',uid,token}))}
+   catch(e){finishError(e.message)}
+  });
+  sock.addEventListener('message',event=>{
+   let m;try{m=JSON.parse(event.data)}catch{return}
+   if(m.t==='auth'&&m.ok){
+    authed=true;NET.cloud='ok';S.err='';clearTimeout(timer);
+    if(!settled){settled=true;resolve(true)}
+    render();return;
+   }
+   receiveSecureMessage(event);
+   if(m.t==='err'&&!authed)finishError(m.e);
+  });
+  sock.addEventListener('error',()=>{if(!authed)finishError('Не удалось открыть защищённое соединение. Проверьте адрес сервера.')});
+  sock.addEventListener('close',()=>{
+   if(ws===sock){
+    ws=null;NET.cloud='✗';
+    if(R&&S.scr==='room'){S.err='Соединение с сервером прервано. Вернитесь на главную и войдите в комнату по тому же коду.';render()}
+   }
+   if(!authed)finishError('Сервер закрыл подключение до подтверждения сессии.');
+  });
+ });
+}
+function saveRoomSession(result){
+ uid=result.uid;ls('bu',uid);rid=result.code;
+ ls('bks:'+rid,{uid,token:result.token});
+ R=result.R;S.scr='room';S.err='';isHost=false;render();
+}
+async function createSecureRoom(set){
+ closeNet();R=null;S.err='Создаём защищённую комнату…';render();
+ try{
+  const result=await apiPost('/api/create',{uid,name:S.name.trim(),av:S.dc?.av||'',set,gmPlays:true,surv:2});
+  if(!result.ok||!result.token||!result.code)throw new Error('Сервер не вернул данные новой комнаты.');
+  saveRoomSession(result);
+  await openSecureSocket(result.token);
+ }catch(error){
+  closeNet();R=null;S.scr='home';S.err=error.message||'Не удалось создать комнату';render();
+ }
+}
+async function joinRoom(code){
+ closeNet();R=null;code=String(code||'').toUpperCase();
+ if(!/^[A-Z2-9]{8}$/.test(code)){S.err='Введите код комнаты из 8 символов';return render()}
+ S.err='Подключаемся к облачному серверу…';render();
+ try{
+  let result=null;
+  const cached=ls('bks:'+code);
+  if(cached?.uid&&cached?.token){
+   try{result=await apiPost('/api/resume',{code,uid:cached.uid,token:cached.token})}
+   catch{ls('bks:'+code,null)}
+  }
+  if(!result){
+   result=await apiPost('/api/join',{code,preferredUid:uid,name:S.name.trim(),av:S.dc?.av||''});
+  }
+  if(!result.ok||!result.token||!result.uid)throw new Error('Сервер вернул некорректные данные комнаты.');
+  saveRoomSession(result);
+  await openSecureSocket(result.token);
+ }catch(error){
+  closeNet();R=null;S.scr='home';S.err=error.message||'Не удалось войти в комнату';render();
+ }
+}
+function closeNet(){
+ const old=ws;ws=null;
+ if(old){try{old.close(1000,'Пользователь вышел')}catch{}}
+ NET={};isHost=false;myV={};S.note='';
+}
+
 function cell(id,k){const c=R.chars[id][k]||{v:'—',o:1},mine=id===uid,g=gm(),end=R.status==='end';let h,b='';
  if(c.o)h=`<b>${esc(c.v)}</b>`+(k==='spec'?(c.u?' ✔':' ⚡'):'');else if(mine||(g&&peek))h=`<span class=dim>${esc(c.v)}</span>`;else h='🔒';
  if(c.h&&(c.o||mine||(g&&peek)))h+=` <span class=i tabindex=0 data-h="${esc(c.h)}">ⓘ</span>`;
@@ -396,11 +461,11 @@ function lobby(){const g=gm(),ids=Object.keys(R.players);
 
 function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class=g data-a=leave>На главную</button></p>`;
  if(!R.players[uid])return `<div class=card><h3>Вас нет в списке игроков</h3><p>Возможно, ведущий исключил вас из комнаты.</p><button data-a=leave>На главную</button></div>`;
- return `<div class=top><b><span class=lg></span> Комната ${rid}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+(R.status==='lobby'?lobby():game())}
+ return `<div class=top><b><span class=lg></span> Комната ${rid}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Создатель: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+(R.status==='lobby'?lobby():game())}
 
 function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
-<div class=card><h3>Создать комнату</h3><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${s.id}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button>${ls('bh')?`<p class=mu>Хост закрыл вкладку? <button class=g data-a=rest>Восстановить комнату ${esc(ls('bh').code)}</button></p>`:''}</div>
-<div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
+<div class=card><h3>Создать комнату</h3><p class=mu>${window.BUNKER_API_BASE?'Подключён бесплатный облачный сервер.':'Сетевой сервер ещё не настроен: после его бесплатной публикации игра будет работать через Cloudflare.'}</p><label>Набор<select id=pick>${BUILTIN.map(s=>`<option value="${s.id}">${esc(s.name)} (встроенный)</option>`).join('')}${S.sets.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-a=create>Создать</button></div>
+<div class=card><h3>Войти в комнату</h3><input id=code placeholder="8-значный код комнаты" maxlength=8 style="text-transform:uppercase"><button data-a=join>Войти</button></div>
 <div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${s.id}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
 
 function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
@@ -424,14 +489,12 @@ case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y
  const id=S.ed.id||'s'+Date.now().toString(36),l=(ls('bsets')||[]).filter(x=>x.id!==id);l.push({id,...d});ls('bsets',l);S.scr='home';loadSets();break}
 case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='home';loadSets();break;
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
- const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:BUILTIN.some(x=>x.id===p)?p:'',name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
- const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
- startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim(),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
+ const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={id:s0.id||p,bid:BUILTIN.some(x=>x.id===p)?p:'',name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
+ await createSecureRoom(s);break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
- joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
+ await joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
 case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
 case 'imp':{const f=t.files[0];if(!f)break;const l=JSON.parse(await f.text()),cur=ls('bsets')||[];l.forEach(x=>{const j=cur.findIndex(y=>y.id===x.id);j<0?cur.push(x):cur[j]=x});ls('bsets',cur);loadSets();break}
-case 'rest':{const h=ls('bh');startHost(h.code,h.R);break}
 case 'info':case 'sett':S.prev=S.scr;S.scr=a;render();break;
 case 'back2':S.scr=S.prev==='room'&&R?'room':'home';render();break;
 case 'acc':ST.ac=k;saveST();render();break;
