@@ -597,7 +597,7 @@ async function scenarioEventsAndFacility() {
     await host.page.locator('#e_capacity').fill('6');
     await host.page.locator('#e_provisions').fill('110');
     await host.page.locator('#e_air').fill('100');
-    await host.page.locator('#e_rooms').fill('Жилой блок, душевая, медпункт');
+    await host.page.locator('#e_rooms').fill('Жилой блок, Душевая, Медпункт');
     await host.page.locator('#e_events').fill(
       'Дым в душевой | Из вентиляции душевой повалил густой дым. Автоматика отключила вытяжку в этом секторе. | Ведущий: после решения игроков можно закрыть душевую в списке помещений.\n' +
       'Повреждение запасов | На складе обнаружены следы грызунов. Часть упаковок продовольствия испорчена. | Ведущий: бросьте кубик отдельно и уменьшите провиант на согласованный процент.'
@@ -653,6 +653,8 @@ async function scenarioEventsAndFacility() {
     await host.page.locator('#custom_event_note').fill('Разовое событие не должно попасть в каталог набора.');
     await click(host.page, 'button[data-a=event-publish-custom]');
     await waitBody(players[1].page, 'Разовая тревога');
+    await waitBody(host.page, 'Заметка ведущему: Разовое событие не должно попасть в каталог набора.');
+    assert(!(await bodyText(players[1].page)).includes('Заметка ведущему: Разовое событие не должно попасть в каталог набора.'), 'Host-only note was shown in the player popup');
     const customState = await host.page.evaluate(() => window.__bunkerTestDebug?.());
     assert(customState?.eventCatalogCount === 2, 'One-off event was incorrectly added to the pack catalog');
     await click(host.page, '.event-overlay button[data-a=event-dismiss]');
