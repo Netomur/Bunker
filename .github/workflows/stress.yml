@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - audit/fix-visual-and-logic-2026-11-16
+      - feature/host-events-counters-2026-11-16
   workflow_dispatch:
 
 permissions:

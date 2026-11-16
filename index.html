@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Бункер — онлайн-игра для друзей</title>
-<meta name="description" content="Бункер — бесплатная браузерная игра на выживание для друзей: комнаты по коду, 12 характеристик, голосования и редактор наборов. Релиз 1.0.1.">
+<meta name="description" content="Бункер — бесплатная браузерная игра на выживание для друзей: комнаты по коду, 12 характеристик, голосования и редактор наборов. Релиз 1.1.0.">
 <meta name="theme-color" content="#79509a">
 <meta name="application-name" content="Бункер">
-<meta name="version" content="1.0.1">
+<meta name="version" content="1.1.0">
 <link rel="canonical" href="https://netomur.github.io/Bunker/">
 <link rel="icon" type="image/png" href="./favicon.png">
 <link rel="apple-touch-icon" href="./favicon.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Бункер — онлайн-игра для друзей">
-<meta property="og:description" content="Бесплатная браузерная игра «Бункер» для компании друзей. Релиз 1.0.1.">
+<meta property="og:description" content="Бесплатная браузерная игра «Бункер» для компании друзей. Релиз 1.1.0.">
 <meta property="og:url" content="https://netomur.github.io/Bunker/">
 <meta property="og:image" content="https://netomur.github.io/Bunker/banner.jpg">
 <meta property="og:image:alt" content="Баннер онлайн-игры «Бункер»">
@@ -21,7 +21,7 @@
 <meta property="og:image:height" content="525">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Бункер — онлайн-игра для друзей">
-<meta name="twitter:description" content="Бесплатная браузерная игра «Бункер» для компании друзей. Релиз 1.0.1.">
+<meta name="twitter:description" content="Бесплатная браузерная игра «Бункер» для компании друзей. Релиз 1.1.0.">
 <meta name="twitter:image" content="https://netomur.github.io/Bunker/banner.jpg">
 <style>
 :root{--bg:#f1efe8;--fg:#1d1c19;--cd:#fff;--c2:#ece9df;--bd:#d9d5c8;--ac:#c2571a;--on:#fff;--mu:#757166;--ok:#2e7d32;--bad:#c62828;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -99,11 +99,38 @@ th{font-weight:700;letter-spacing:.2px}
 .privacy-notice{margin:0 0 14px;padding:12px 15px;border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:13px;background:var(--c2);font-size:13px;line-height:1.45}
 .privacy-notice p{margin:5px 0;color:var(--mu)}
 .privacy-notice a{font-weight:650;color:var(--ac);text-decoration:underline;text-underline-offset:2px}
+
+.event-overlay{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:18px;background:#09070dd9;backdrop-filter:blur(5px)}
+.event-dialog{width:min(100%,680px);max-height:86vh;overflow:auto;padding:26px;background:var(--cd);color:var(--fg);border:1px solid var(--bd);border-radius:20px;box-shadow:0 20px 80px #0008}
+.event-dialog h2{font-size:clamp(23px,4vw,32px);margin:8px 0 18px}
+.event-body{white-space:pre-wrap;font-size:17px;line-height:1.65}
+.event-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.facility-overlay{z-index:70}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-head h3{margin:0}
+.stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.stat-tile{display:flex;flex-direction:column;gap:5px;min-width:0;padding:13px;border:1px solid var(--bd);border-radius:13px;background:var(--c2)}
+.stat-tile span{font-size:10px;letter-spacing:1px;font-weight:800;color:var(--mu)}
+.stat-tile b{font-size:clamp(17px,2.5vw,23px);overflow-wrap:anywhere}
+.room-head{margin-top:16px}
+.room-status-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+.room-status{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border:1px solid var(--bd);border-radius:11px}
+.room-status span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.room-status small{font-size:11px}
+.event-menu{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
+.event-choice{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.event-choice p{margin:4px 0;font-size:13px;color:var(--mu)}
+.event-choice small{display:block;color:var(--ac);margin-top:5px}
+.event-choice button{flex:0 0 auto;align-self:center}
+.custom-event-form{margin-top:14px;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--c2)}
+.stat-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
+.stat-edit-grid label{margin:5px 0}
+@media(max-width:640px){.stat-grid{grid-template-columns:1fr}.room-status-list{grid-template-columns:1fr}.event-dialog{padding:18px}.event-choice{flex-direction:column}.event-choice button{align-self:flex-start}.stat-edit-grid{grid-template-columns:1fr}}
 </style></head><body><div id="app">Загрузка…</div>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';document.head.append(s)"></script>
 <script>
 const DISCORD_CLIENT_ID='1571591321150431262';
-const VER='1.0.1';
+const VER='1.1.0';
 const K=[['gender','Пол'],['race','Раса'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
 const DEF={
  id:'standard',
@@ -329,10 +356,27 @@ const al=()=>Object.keys(R.chars).filter(i=>!R.out[i]);
 const gm=()=>R&&R.gm===uid;
 function ask(msg,val,opts){return new Promise(r=>{const d=document.createElement('div');d.className='ov';d.innerHTML=`<div class=card><p>${esc(msg)}</p>${opts?`<select id=av>${opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>`:`<input id=av value="${esc(val||'')}">`}<p><button id=ok>ОК</button><button class=g id=no>Отмена</button></p></div>`;document.body.append(d);const f=x=>{const v=x?d.querySelector('#av').value:null;d.remove();r(v)};d.querySelector('#ok').onclick=()=>f(1);d.querySelector('#no').onclick=()=>f(0)})}
 
-function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){ls('bsets',[]);ls('bunker-pack-version','standard-v1')}S.sets=ls('bsets')||[];render()}
+function loadSets(){if(ls('bunker-pack-version')!=='standard-v1'){const existing=ls('bsets');if(!Array.isArray(existing))ls('bsets',[]);ls('bunker-pack-version','standard-v1')}const saved=ls('bsets');S.sets=Array.isArray(saved)?saved:[];render()}
 function importStrings(value,label,maxItems=500,maxLength=2000){if(value==null)return[];if(!Array.isArray(value)||value.length>maxItems)throw new Error(label+': неверный список.');const out=[];for(const v of value){if(typeof v!=='string'||v.length>maxLength)throw new Error(label+': все элементы должны быть строками допустимой длины.');if(v.trim())out.push(v.trim())}return out}
-function normalizeImportedPack(raw,index){const label='Набор #'+(index+1);if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error(label+': ожидался объект.');if(typeof raw.id!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(raw.id))throw new Error(label+': некорректный ID.');if(BUILTIN.some(x=>x.id===raw.id))throw new Error(label+': ID совпадает со встроенным набором.');if(typeof raw.name!=='string'||!raw.name.trim()||raw.name.length>100)throw new Error(label+': укажите название до 100 символов.');const story=importStrings(raw.story??[],label+' — сюжет',100,5000),bunkerSize=importStrings(raw.bunkerSize??[],label+' — размеры бункера',200,300),rooms=importStrings(raw.rooms??[],label+' — комнаты',200,500);const sourceLists=raw.lists??{};if(!sourceLists||typeof sourceLists!=='object'||Array.isArray(sourceLists))throw new Error(label+': некорректные категории.');const lists={};for(const [k] of K)lists[k]=importStrings(Object.prototype.hasOwnProperty.call(sourceLists,k)?sourceLists[k]:[],label+' — '+k,1000,1000);const sourceQ=raw.q??[];if(!Array.isArray(sourceQ)||sourceQ.length>100)throw new Error(label+': некорректный список вопросов.');const q=sourceQ.map((item,n)=>{if(!item||typeof item!=='object'||Array.isArray(item)||typeof item.t!=='string'||!item.t.trim()||item.t.length>500)throw new Error(label+' — вопрос '+(n+1)+': некорректный текст.');const priority=Number(item.priority??1);if(!Number.isInteger(priority)||priority<1||priority>10)throw new Error(label+' — вопрос '+(n+1)+': приоритет должен быть от 1 до 10.');const need=item.need===undefined||item.need==='y'||item.need===true?'y':item.need==='n'||item.need===false?'n':null;if(!need)throw new Error(label+' — вопрос '+(n+1)+': ответ должен быть «да» или «нет».');return{t:item.t.trim(),priority,need}});const sourceSx=raw.sx??{};if(!sourceSx||typeof sourceSx!=='object'||Array.isArray(sourceSx))throw new Error(label+': некорректные дополнительные параметры.');const sx={};for(const [k,meta] of Object.entries(SX)){const item=sourceSx[k]??{};if(!item||typeof item!=='object'||Array.isArray(item))throw new Error(label+' — параметры '+k+': некорректные данные.');const list=importStrings(item.list??[],label+' — параметры '+k,300,200);const e=Number(item.e??0);if(!Number.isFinite(e)||e<0||e>100)throw new Error(label+' — параметры '+k+': шанс «Пусто» должен быть от 0 до 100.');sx[k]={list,e};if(meta[2]){const lo=item.lo==null||item.lo===''?null:Number(item.lo),hi=item.hi==null||item.hi===''?null:Number(item.hi),p=Number(item.p??50);if((lo!==null&&!Number.isFinite(lo))||(hi!==null&&!Number.isFinite(hi))||(lo!==null&&hi!==null&&hi<lo)||!Number.isFinite(p)||p<0||p>100)throw new Error(label+' — диапазон '+k+': проверьте границы и вероятность.');sx[k].lo=lo;sx[k].hi=hi;sx[k].p=p}}return{id:raw.id,ownerId:typeof raw.ownerId==='string'?raw.ownerId.slice(0,100):'',name:raw.name.trim(),story,lists,sx,bunkerSize,rooms,q}}
+function normalizeImportedPack(raw,index){const label='Набор #'+(index+1);if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error(label+': ожидался объект.');if(typeof raw.id!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(raw.id))throw new Error(label+': некорректный ID.');if(BUILTIN.some(x=>x.id===raw.id))throw new Error(label+': ID совпадает со встроенным набором.');if(typeof raw.name!=='string'||!raw.name.trim()||raw.name.length>100)throw new Error(label+': укажите название до 100 символов.');const story=importStrings(raw.story??[],label+' — сюжет',100,5000),bunkerSize=importStrings(raw.bunkerSize??[],label+' — размеры бункера',200,300),rooms=importStrings(raw.rooms??[],label+' — комнаты',200,500);const sourceLists=raw.lists??{};if(!sourceLists||typeof sourceLists!=='object'||Array.isArray(sourceLists))throw new Error(label+': некорректные категории.');const lists={};for(const [k] of K)lists[k]=importStrings(Object.prototype.hasOwnProperty.call(sourceLists,k)?sourceLists[k]:[],label+' — '+k,1000,1000);const sourceQ=raw.q??[];if(!Array.isArray(sourceQ)||sourceQ.length>100)throw new Error(label+': некорректный список вопросов.');const q=sourceQ.map((item,n)=>{if(!item||typeof item!=='object'||Array.isArray(item)||typeof item.t!=='string'||!item.t.trim()||item.t.length>500)throw new Error(label+' — вопрос '+(n+1)+': некорректный текст.');const priority=Number(item.priority??1);if(!Number.isInteger(priority)||priority<1||priority>10)throw new Error(label+' — вопрос '+(n+1)+': приоритет должен быть от 1 до 10.');const need=item.need===undefined||item.need==='y'||item.need===true?'y':item.need==='n'||item.need===false?'n':null;if(!need)throw new Error(label+' — вопрос '+(n+1)+': ответ должен быть «да» или «нет».');return{t:item.t.trim(),priority,need}});const sourceSx=raw.sx??{};if(!sourceSx||typeof sourceSx!=='object'||Array.isArray(sourceSx))throw new Error(label+': некорректные дополнительные параметры.');const sx={};for(const [k,meta] of Object.entries(SX)){const item=sourceSx[k]??{};if(!item||typeof item!=='object'||Array.isArray(item))throw new Error(label+' — параметры '+k+': некорректные данные.');const list=importStrings(item.list??[],label+' — параметры '+k,300,200);const e=Number(item.e??0);if(!Number.isFinite(e)||e<0||e>100)throw new Error(label+' — параметры '+k+': шанс «Пусто» должен быть от 0 до 100.');sx[k]={list,e};if(meta[2]){const lo=item.lo==null||item.lo===''?null:Number(item.lo),hi=item.hi==null||item.hi===''?null:Number(item.hi),p=Number(item.p??50);if((lo!==null&&!Number.isFinite(lo))||(hi!==null&&!Number.isFinite(hi))||(lo!==null&&hi!==null&&hi<lo)||!Number.isFinite(p)||p<0||p>100)throw new Error(label+' — диапазон '+k+': проверьте границы и вероятность.');sx[k].lo=lo;sx[k].hi=hi;sx[k].p=p}}const sourceEvents=raw.events??[];
+if(!Array.isArray(sourceEvents)||sourceEvents.length>100)throw new Error(label+': должно быть не более 100 событий.');
+const events=sourceEvents.map((item,n)=>{let title,text,gmNote='';if(typeof item==='string'){const parts=item.split('|');title=parts.shift()?.trim();text=parts.shift()?.trim();gmNote=parts.join('|').trim()}else if(item&&typeof item==='object'&&!Array.isArray(item)){title=item.title;text=item.text??item.description;gmNote=item.gmNote??''}if(typeof title!=='string'||!title.trim()||title.length>120||typeof text!=='string'||!text.trim()||text.length>2500||typeof gmNote!=='string'||gmNote.length>1500)throw new Error(label+' — событие '+(n+1)+': проверьте название, описание и заметку ведущего.');return{id:typeof item?.id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(item.id)?item.id:'event-'+(n+1),title:title.trim(),text:text.trim(),gmNote:gmNote.trim()}});
+const sourceMetrics=raw.metrics??{};
+if(!sourceMetrics||typeof sourceMetrics!=='object'||Array.isArray(sourceMetrics))throw new Error(label+': некорректные начальные показатели.');
+const metric=(key,fallback,min,max,integer=false)=>{const value=Number(sourceMetrics[key]??fallback);if(!Number.isFinite(value)||value<min||value>max||(integer&&!Number.isInteger(value)))throw new Error(label+': некорректное начальное значение "'+key+'".');return value};
+const metrics={capacity:metric('capacity',6,0,10000,true),provisions:metric('provisions',100,0,10000),air:metric('air',100,0,10000)};
+return{id:raw.id,ownerId:typeof raw.ownerId==='string'?raw.ownerId.slice(0,100):'',name:raw.name.trim(),story,lists,sx,bunkerSize,rooms,q,events,metrics}}
 function pub(t,o){const m=JSON.stringify(o);B.forEach(b=>{try{b.c.connected&&b.c.publish('bk26/'+rid+'/'+t,m,{qos:1})}catch(e){}})}
+
+function roomEntries(plan){return String(plan||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean).map((name,n)=>({id:'room-'+n,name,available:true}))}
+function initialFacility(env,set,people){const m=set?.metrics||{};return{survivors:people,capacity:Number.isFinite(+m.capacity)?Math.max(0,+m.capacity):6,provisions:{current:Number.isFinite(+m.provisions)?Math.max(0,+m.provisions):100,normal:100},air:{current:Number.isFinite(+m.air)?Math.max(0,+m.air):100,normal:100},rooms:roomEntries(env?.rooms)}}
+function facilityData(){const base={survivors:Object.keys(R?.chars||{}).filter(id=>!R?.out?.[id]).length,capacity:6,provisions:{current:100,normal:100},air:{current:100,normal:100},rooms:roomEntries(R?.env?.rooms)},f=R?.facility||{};return{...base,...f,provisions:{...base.provisions,...(f.provisions||{})},air:{...base.air,...(f.air||{})},rooms:Array.isArray(f.rooms)?f.rooms:base.rooms}}
+function formatMetric(v){const n=Number(v);return Number.isFinite(n)?(Number.isInteger(n)?String(n):String(Math.round(n*10)/10)):'0'}
+function facilityEditor(){if(!gm()||!S.facilityEditOpen)return'';const f=facilityData();return '<div class="event-overlay facility-overlay"><div class="event-dialog"><span class="eyebrow">ПАНЕЛЬ ВЕДУЩЕГО</span><h2>Показатели убежища</h2><p class="mu">Изменения сразу появятся у всех участников. Число людей можно корректировать отдельно от списка игровых персонажей.</p><div class="stat-edit-grid"><label>Людей в убежище<input id="stat_survivors" type="number" min="0" max="10000" step="1" value="'+formatMetric(f.survivors)+'"></label><label>Мест в убежище<input id="stat_capacity" type="number" min="0" max="10000" step="1" value="'+formatMetric(f.capacity)+'"></label><label>Провиант, сейчас (%)<input id="stat_provisions" type="number" min="0" max="10000" step="0.1" value="'+formatMetric(f.provisions?.current??100)+'"></label><label>Провиант, норма (%)<input id="stat_provisions_normal" type="number" min="1" max="10000" step="0.1" value="'+formatMetric(f.provisions?.normal??100)+'"></label><label>Воздух, сейчас (%)<input id="stat_air" type="number" min="0" max="10000" step="0.1" value="'+formatMetric(f.air?.current??100)+'"></label><label>Воздух, норма (%)<input id="stat_air_normal" type="number" min="1" max="10000" step="0.1" value="'+formatMetric(f.air?.normal??100)+'"></label></div><div class="event-actions"><button data-a="facility-save">Сохранить показатели</button><button class="g" data-a="facility-cancel">Отмена</button></div></div></div>'}
+function facilityPanel(g){const f=facilityData(),rooms=Array.isArray(f.rooms)?f.rooms:[];return '<div class="card"><div class="panel-head"><h3>Состояние убежища</h3>'+(g?'<button class="g" data-a="facility-edit">Изменить показатели</button>':'')+'</div><div class="stat-grid"><div class="stat-tile"><span>ЛЮДИ / МЕСТА</span><b>'+formatMetric(f.survivors)+' / '+formatMetric(f.capacity)+'</b></div><div class="stat-tile"><span>ПРОВИАНТ</span><b>'+formatMetric(f.provisions?.current??100)+'% / '+formatMetric(f.provisions?.normal??100)+'%</b></div><div class="stat-tile"><span>ВОЗДУХ</span><b>'+formatMetric(f.air?.current??100)+'% / '+formatMetric(f.air?.normal??100)+'%</b></div></div><div class="panel-head room-head"><h3>Помещения</h3>'+(g?'<button class="g" data-a="room-add">+ Добавить помещение</button>':'')+'</div>'+(rooms.length?'<div class="room-status-list">'+rooms.map((room,n)=>'<div class="room-status"><span><b>'+esc(room.name)+'</b><small class="'+(room.available?'ok':'bad')+'">'+(room.available?'Доступно':'Закрыто')+'</small></span>'+(g?'<button class="g" data-a="room-toggle" data-i="'+n+'">'+(room.available?'Закрыть':'Вернуть')+'</button>':'')+'</div>').join('')+'</div>':'<p class="mu">Список помещений не задан.</p>')+'</div>'+facilityEditor()}
+function hostTools(){if(!gm())return'';const catalog=Array.isArray(R.eventCatalog)?R.eventCatalog:[];let menu='';if(S.eventsOpen){menu='<div class="event-menu"><h3>События из набора</h3>'+(catalog.length?catalog.map((ev,n)=>'<div class="event-choice"><div><b>'+esc(ev.title)+'</b><p>'+esc(ev.text)+'</p>'+(ev.gmNote?'<small>Ведущему: '+esc(ev.gmNote)+'</small>':'')+'</div><button data-a="event-trigger" data-i="'+n+'" '+(R.activeEvent?'disabled':'')+'>Показать</button></div>').join(''):'<p class="mu">В этом наборе пока нет заранее подготовленных событий.</p>')+'<div class="event-actions"><button class="g" data-a="custom-event-toggle" '+(R.activeEvent?'disabled':'')+'>Создать разовое событие</button><button class="g" data-a="events-toggle">Скрыть меню</button></div></div>'}let custom='';if(S.customEventOpen){custom='<div class="custom-event-form"><h3>Разовое событие</h3><label>Заголовок<input id="custom_event_title" maxlength="120" placeholder="Например, тревога в шлюзе"></label><label>Текст для игроков<textarea id="custom_event_text" maxlength="2500" rows="4" placeholder="Что произошло?"></textarea></label><label>Заметка ведущему (необязательно)<textarea id="custom_event_note" maxlength="1500" rows="2" placeholder="Подсказка по последствиям или броску кубика"></textarea></label><div class="event-actions"><button data-a="event-publish-custom">Показать участникам</button><button class="g" data-a="custom-event-cancel">Отмена</button></div></div>'}return '<div class="card"><div class="panel-head"><h3>Панель ведущего</h3><button data-a="events-toggle">События ('+catalog.length+')</button></div><p class="mu">Показанное событие увидят все участники поверх игры. Оно останется на экране, пока ведущий его не закроет.</p>'+(R.activeEvent?'<p class="sp"><b>Сейчас показано:</b> '+esc(R.activeEvent.title)+(R.activeEvent.gmNote?'<small>Заметка ведущему: '+esc(R.activeEvent.gmNote)+'</small>':'')+' <button class="g" data-a="event-dismiss">Закрыть событие</button></p>':'')+menu+custom+'</div>'}
+function eventPopup(g){const ev=R?.activeEvent;if(!ev)return'';return '<div class="event-overlay" role="dialog" aria-modal="true" aria-labelledby="active-event-title"><div class="event-dialog"><span class="eyebrow">СОБЫТИЕ В УБЕЖИЩЕ</span><h2 id="active-event-title">'+esc(ev.title)+'</h2><p class="event-body">'+esc(ev.text)+'</p>'+(g?'<div class="event-actions"><button data-a="event-dismiss">Закрыть событие</button></div>':'<p class="mu">Обсудите произошедшее. Ведущий закроет объявление, когда обсуждение закончится.</p>')+'</div></div>'}
+
 function view(){return{...R,set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
 function saveRoomSet(code,set){if(!code||!set||!set.lists)return;try{sessionStorage.setItem('bk26-set-'+code,JSON.stringify(set))}catch(e){}}
 function restoreRoomSet(){if(!R||R.set?.lists||!rid)return false;try{const saved=JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null');if(!saved||typeof saved!=='object'||Array.isArray(saved)||saved.bid!==R.set?.bid||saved.name!==R.set?.name||!saved.lists)return false;const lists={};for(const [k] of K){if(!Array.isArray(saved.lists[k])||saved.lists[k].some(v=>typeof v!=='string'))return false;lists[k]=saved.lists[k].slice()}R.set={...R.set,...saved,lists};return true}catch(e){return false}}
@@ -341,7 +385,9 @@ function rollKey(k,i){if(!R.set.lists){S.err='Набор недоступен п
 function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};if(ids.length<2){S.err='Для начала игры нужны минимум два участника. Проверьте, что в комнате достаточно игроков с учётом настройки «Ведущий тоже играет».';render();return;}
  K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
  const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{{const p=sp(pl[k][n%pl[k].length]);ch[id][k]={v:p.v+sfx(s,k),h:p.h,o:0}}})});
- upd({status:'play',chars:ch,story:pick(s.story),env:{size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])},phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))})}
+ const story=pick(s.story),env={size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])};
+ upd({status:'play',chars:ch,story,env,facility:initialFacility(env,s,ids.length),eventCatalog:Array.isArray(s.events)?s.events:[],activeEvent:null,phase:'choose',n:1,surv:Math.min(R.surv,Math.max(1,ids.length-1))})}
+
 function closeNet(){netGeneration++;clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};seen.clear();S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
 const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
 const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:nextMsgId()})};
@@ -414,11 +460,11 @@ function endPanel(g){
  ${done&&qs.length?`<div class="scorebox ${ok?'score-ok':'score-bad'}"><p class=v>${ok?'Выжившие справились!':'Выжившие не справились.'}</p><p><b>Итоговая оценка: ${score}%</b> (${earned} из ${total} весовых баллов).</p><p class=mu>Для выживания нужно набрать не менее 70%. Вопросы с приоритетом 10 являются критическими и обязательными.</p></div>${bad.length?`<p class=mu>Не выполнено: ${esc(bad.join('; '))}</p>`:''}`:''}</div>`}
 
 function game(){const g=gm(),end=R.status==='end';
- const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>`<div class=sp>⚡ <b>${esc(R.players[i].name)}</b> активирует способность: ${esc(R.chars[i].spec.v)} ${g?`<button data-a=done data-i="${esc(i)}">Выполнено</button>`:''}</div>`).join('');
- return `<div class=card><b>Сюжет:</b> ${esc(R.story)}<div class=env-grid><div class=env-item><span>РАЗМЕР БУНКЕРА</span><b>${esc(R.env?.size||'—')}</b></div><div class=env-item><span>ПЛАНИРОВКА И ПОМЕЩЕНИЯ</span><b>${esc(R.env?.rooms||'—')}</b></div></div><span class=mu>Цель: выжить должны ${R.surv}</span></div>
- ${end?'':`<div class="card ban">${banner(g)}</div>`}${sp}
- ${g?`<p><label style="display:inline"><input type=checkbox data-a=peek ${peek?'checked':''}>Подсмотреть скрытое</label> <label style="display:inline"><input type=checkbox data-a=edit ${edit?'checked':''}>Режим правок (🎲 случайное, ✎ вручную, ⇄ обмен, 👁 открыть/скрыть)</label> ${end?'':'<button class=g data-a=fin>Завершить игру</button>'}</p>`:''}
- ${table()}${end?endPanel(g):''}`}
+ const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>'<div class=sp>⚡ <b>'+esc(R.players[i].name)+'</b> активирует способность: '+esc(R.chars[i].spec.v)+' '+(g?'<button data-a=done data-i="'+esc(i)+'">Выполнено</button>':'')+'</div>').join('');
+ return '<div class=card><b>Сюжет:</b> '+esc(R.story)+'<div class=env-grid><div class=env-item><span>РАЗМЕР БУНКЕРА</span><b>'+esc(R.env?.size||'—')+'</b></div><div class=env-item><span>ПЛАНИРОВКА И ПОМЕЩЕНИЯ</span><b>'+esc(R.env?.rooms||'—')+'</b></div></div><span class=mu>Цель: выжить должны '+R.surv+'</span></div>'+
+ facilityPanel(g)+(g?hostTools():'')+(end?'':'<div class="card ban">'+banner(g)+'</div>')+sp+
+ (g?'<p><label style="display:inline"><input type=checkbox data-a=peek '+(peek?'checked':'')+'>Подсмотреть скрытое</label> <label style="display:inline"><input type=checkbox data-a=edit '+(edit?'checked':'')+'>Режим правок (🎲 случайное, ✎ вручную, ⇄ обмен, 👁 открыть/скрыть)</label> '+(end?'':'<button class=g data-a=fin>Завершить игру</button>')+'</p>':'')+
+ table()+(end?endPanel(g):'')+eventPopup(g)}
 
 function lobby(){const g=gm(),ids=Object.keys(R.players);
  return `<div class=card><h3>Игроки (${ids.length})</h3>${ids.map(i=>`<p class=pl>${av(R.players[i])}${esc(R.players[i].name)}${i===R.gm?' 🎙 ведущий':''} ${g&&i!==R.gm?`<button class=g data-a=setgm data-i="${esc(i)}">Сделать ведущим</button><button class=g data-a=kick data-i="${esc(i)}">Выгнать</button>`:''}</p>`).join('')}
@@ -439,13 +485,17 @@ ${privacyNotice()}
 <div class=card><h3>Войти в комнату</h3><input id=code placeholder="Код комнаты" maxlength=6 pattern="[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}" autocomplete=off style="text-transform:uppercase"><button data-a=join>Войти</button></div>
 <div class=card><h3>Собственные наборы</h3><p class=mu>Встроенный набор «Стандартный» уже готов к игре. Здесь можно хранить дополнительные наборы для других компаний или сценариев.</p>${S.sets.map(s=>`<p>${esc(s.name)} <button class=g data-a=edit1 data-i="${esc(s.id)}">Изменить</button></p>`).join('')||'<p class=mu>Своих наборов пока нет</p>'}<button data-a=new>Новый набор</button><button class=g data-a=exp>Экспорт</button><label>Импорт из файла<input type=file accept=.json data-a=imp></label><p class=mu>Наборы хранятся в этом браузере. Делайте экспорт, чтобы перенести их на другое устройство.</p></div>`}
 
-function editor(){const e=S.ed;return `<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>
-<label>Название<input id=e_name value="${esc(e.name)}"></label>
-<p class=mu>В каждое поле — по одному варианту на строку (количество не ограничено). Варианты сюжета разделяйте строкой <code>---</code>. При старте игрокам выпадают случайные варианты. К любому варианту можно дописать подсказку в квадратных скобках: <code>Киллер [Может добавить в Малый инвентарь перочинный нож]</code>. Она покажется значком ⓘ при наведении (на телефоне — при нажатии).</p>
-<label>Сюжет (начальная страница партии)<textarea id=e_story rows=6>${esc(e.story)}</textarea></label>
-${K.map(([k,n])=>`<label>${n}<textarea id=e_${k} rows=4>${esc(e.lists[k]||'')}</textarea></label>${SX[k]?sxBox(k,e):''}`).join('')}
-<label>Размеры бункера (каждый вариант с новой строки; один вариант выбирается при старте)<textarea id=e_bunkerSize rows=3>${esc(e.bunkerSize||'')}</textarea></label><label>Виды комнат и планировки (каждая строка — готовый вариант помещений)<textarea id=e_rooms rows=4>${esc(e.rooms||'')}</textarea></label><label>Вопросы финала: «Вопрос [приоритет 1–10] | да/нет». Без приоритета вопрос получает вес 1. Вопросы с весом 10 критические и обязательные, общий порог выживания — 70%.<textarea id=e_q rows=7>${esc(e.q)}</textarea></label>
-<button data-a=save>Сохранить</button>${e.id?'<button class=g data-a=delset>Удалить набор</button>':''}</div>`}
+function editor(){const e=S.ed,metrics=e.metrics||{capacity:6,provisions:100,air:100};return '<div class=card><button class=g data-a=home>← Назад</button><h2>Редактор набора</h2>'+
+'<label>Название<input id=e_name value="'+esc(e.name)+'"></label>'+
+'<p class=mu>В каждое поле — по одному варианту на строку. Сюжет разделяйте строкой ---; события записывайте в формате «Название | текст для игроков | заметка ведущему (необязательно)».</p>'+
+'<label>Сюжет (начальная страница партии)<textarea id=e_story rows=6>'+esc(e.story)+'</textarea></label>'+
+K.map(([k,n])=>'<label>'+n+'<textarea id=e_'+k+' rows=4>'+esc(e.lists[k]||'')+'</textarea></label>'+(SX[k]?sxBox(k,e):'')).join('')+
+'<label>Размеры бункера<textarea id=e_bunkerSize rows=3>'+esc(e.bunkerSize||'')+'</textarea></label><label>Виды комнат и планировки<textarea id=e_rooms rows=4>'+esc(e.rooms||'')+'</textarea></label>'+
+'<label>Вопросы финала: «Вопрос [приоритет 1–10] | да/нет»<textarea id=e_q rows=7>'+esc(e.q)+'</textarea></label>'+
+'<h3>Показатели при старте партии</h3><p class=mu>Норма провианта и воздуха в игре по умолчанию равна 100%. Текущие значения можно менять во время партии.</p>'+
+'<label>Мест в бункере<input id=e_capacity type=number min=0 max=10000 step=1 value="'+esc(metrics.capacity??6)+'"></label><label>Начальный провиант (%)<input id=e_provisions type=number min=0 max=10000 step=0.1 value="'+esc(metrics.provisions??100)+'"></label><label>Начальное состояние воздуха (%)<input id=e_air type=number min=0 max=10000 step=0.1 value="'+esc(metrics.air??100)+'"></label>'+
+'<label>События набора<textarea id=e_events rows=12 placeholder="Дым в душевой | Из вентиляции душевой пошёл дым... | Ведущий: после решения можно закрыть помещение.">'+esc(e.events||'')+'</textarea></label>'+
+'<button data-a=save>Сохранить</button>'+(e.id?'<button class=g data-a=delset>Удалить набор</button>':'')+'</div>'}
 
 function render(){const v=S.scr==='home'?home():S.scr==='ed'?editor():S.scr==='info'?info():S.scr==='sett'?sett():room();$.className=S.scr==='room'&&R&&R.status!=='lobby'?'wide':'';tip.style.display='none';$.innerHTML=(S.note?`<p class="card ban">${esc(S.note)}</p>`:'')+(S.err?`<p class=err>${esc(S.err)}</p>`:'')+netTxt()+v}
 
@@ -453,14 +503,15 @@ async function act(t){const a=t.dataset.a,i=t.dataset.i,k=t.dataset.k,c=R&&R.cha
 try{switch(a){
 case 'home':S.scr='home';S.err='';render();break;
 case 'leave':closeNet();R=null;S.scr='home';render();break;
-case 'new':S.ed={id:null,name:'',story:'',lists:{},q:'',bunkerSize:'',rooms:''};S.scr='ed';render();break;
-case 'edit1':{const s=S.sets.find(x=>x.id===i);S.ed={id:i,sx:s.sx||{},name:s.name,story:(s.story||[]).join('\n---\n'),lists:Object.fromEntries(K.map(([k])=>[k,(s.lists?.[k]||[]).join('\n')])),bunkerSize:(s.bunkerSize||[]).join('\n'),rooms:(s.rooms||[]).join('\n'),q:(s.q||[]).map(x=>x.t+' ['+(x.priority??1)+'] | '+(x.need==='n'?'нет':'да')).join('\n')};S.scr='ed';render();break}
-case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y=>y.trim()).filter(Boolean);
- const d={name:V('e_name').trim()||'Без названия',ownerId:me,sx:getSx(V,ln),story:V('e_story').split(/^\s*---\s*$/m).map(x=>x.trim()).filter(Boolean),lists:Object.fromEntries(K.map(([k])=>[k,ln(V('e_'+k))])),bunkerSize:ln(V('e_bunkerSize')),rooms:ln(V('e_rooms')),q:ln(V('e_q')).map(l=>{const[x,n]=l.split('|'),m=x.match(/\s*\[(\d{1,2})\]\s*$/),t=x.replace(/\s*\[(\d{1,2})\]\s*$/,'').trim();return{t,priority:m?Math.max(1,Math.min(10,+m[1])):1,need:/нет/i.test(n||'')?'n':'y'}})};
+case 'new':S.ed={id:null,name:'',story:'',lists:{},q:'',bunkerSize:'',rooms:'',events:'',metrics:{capacity:6,provisions:100,air:100}};S.scr='ed';render();break;
+case 'edit1':{const s=S.sets.find(x=>x.id===i);S.ed={id:i,sx:s.sx||{},metrics:s.metrics||{capacity:6,provisions:100,air:100},events:(s.events||[]).map(x=>x.title+' | '+x.text+(x.gmNote?' | '+x.gmNote:'')).join('\n'),name:s.name,story:(s.story||[]).join('\n---\n'),lists:Object.fromEntries(K.map(([k])=>[k,(s.lists?.[k]||[]).join('\n')])),bunkerSize:(s.bunkerSize||[]).join('\n'),rooms:(s.rooms||[]).join('\n'),q:(s.q||[]).map(x=>x.t+' ['+(x.priority??1)+'] | '+(x.need==='n'?'нет':'да')).join('\n')};S.scr='ed';render();break}
+case 'save':{const V=id=>$.querySelector('#'+id).value,ln=x=>x.split('\n').map(y=>y.trim()).filter(Boolean),num=(id,fallback,integer=false)=>{const raw=V(id).trim(),n=raw===''?fallback:Number(raw);if(!Number.isFinite(n)||n<0||n>10000||(integer&&!Number.isInteger(n)))throw new Error('Проверьте начальные показатели набора.');return n};
+ const events=ln(V('e_events')).map((line,n)=>{const parts=line.split('|'),title=(parts.shift()||'').trim(),text=(parts.shift()||'').trim(),gmNote=parts.join('|').trim();if(!title||title.length>120||!text||text.length>2500||gmNote.length>1500)throw new Error('Событие '+(n+1)+': используйте формат «Название | описание | заметка ведущему».');return{id:'event-'+(n+1),title,text,gmNote}});
+ const d={name:V('e_name').trim()||'Без названия',ownerId:me,sx:getSx(V,ln),metrics:{capacity:num('e_capacity',6,true),provisions:num('e_provisions',100),air:num('e_air',100)},events,story:V('e_story').split(/^\s*---\s*$/m).map(x=>x.trim()).filter(Boolean),lists:Object.fromEntries(K.map(([k])=>[k,ln(V('e_'+k))])),bunkerSize:ln(V('e_bunkerSize')),rooms:ln(V('e_rooms')),q:ln(V('e_q')).map(l=>{const[x,n]=l.split('|'),m=x.match(/\s*\[(\d{1,2})\]\s*$/),t=x.replace(/\s*\[(\d{1,2})\]\s*$/,'').trim();return{t,priority:m?Math.max(1,Math.min(10,+m[1])):1,need:/нет/i.test(n||'')?'n':'y'}})};
  const id=S.ed.id||'s'+Date.now().toString(36),l=(ls('bsets')||[]).filter(x=>x.id!==id);l.push({id,...d});ls('bsets',l);S.scr='home';loadSets();break}
 case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='home';loadSets();break;
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
- const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:p,name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[]};
+ const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:p,name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[],events:s0.events||[],metrics:s0.metrics||{capacity:6,provisions:100,air:100}};
  const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
  startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
@@ -480,6 +531,18 @@ case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
 case 'gmp':upd({gmPlays:t.checked});break;
 case 'surv':upd({surv:Math.max(1,+t.value||1)});break;
+case 'events-toggle':if(!gm())break;S.eventsOpen=!S.eventsOpen;S.customEventOpen=false;render();break;
+case 'custom-event-toggle':if(!gm()||R.activeEvent)break;S.eventsOpen=true;S.customEventOpen=true;render();break;
+case 'custom-event-cancel':S.customEventOpen=false;render();break;
+case 'event-trigger':{if(!gm()||R.activeEvent)break;const ev=(R.eventCatalog||[])[Number(i)];if(!ev)break;upd({activeEvent:{id:ev.id||'event-'+i,title:ev.title,text:ev.text,source:'pack'}});break}
+case 'event-publish-custom':{if(!gm()||R.activeEvent)break;const title=$.querySelector('#custom_event_title').value.trim(),text=$.querySelector('#custom_event_text').value.trim(),gmNote=$.querySelector('#custom_event_note').value.trim();if(!title||!text){S.err='Заполните заголовок и текст события.';render();break}if(title.length>120||text.length>2500||gmNote.length>1500){S.err='Событие слишком длинное.';render();break}S.customEventOpen=false;S.eventsOpen=false;upd({activeEvent:{id:'custom-'+Date.now().toString(36),title,text,gmNote,source:'custom'}});break}
+case 'event-dismiss':if(!gm())break;upd({activeEvent:null});break;
+case 'facility-edit':if(!gm())break;S.facilityEditOpen=true;render();break;
+case 'facility-cancel':S.facilityEditOpen=false;render();break;
+case 'facility-save':{if(!gm())break;const val=id=>Number($.querySelector('#'+id).value),survivors=val('stat_survivors'),capacity=val('stat_capacity'),provisions=val('stat_provisions'),provisionsNormal=val('stat_provisions_normal'),air=val('stat_air'),airNormal=val('stat_air_normal');if(![survivors,capacity,provisions,provisionsNormal,air,airNormal].every(Number.isFinite)||survivors<0||capacity<0||provisions<0||air<0||provisionsNormal<=0||airNormal<=0||[survivors,capacity].some(x=>!Number.isInteger(x))||[survivors,capacity,provisions,provisionsNormal,air,airNormal].some(x=>x>10000)){S.err='Проверьте числовые значения показателей.';render();break}S.facilityEditOpen=false;upd({facility:{survivors,capacity,provisions:{current:provisions,normal:provisionsNormal},air:{current:air,normal:airNormal}}});break}
+case 'room-toggle':{if(!gm())break;const rooms=(facilityData().rooms||[]).map(x=>({...x})),idx=Number(i);if(!Number.isInteger(idx)||!rooms[idx])break;rooms[idx].available=!rooms[idx].available;upd({facility:{rooms}});break}
+case 'room-add':{if(!gm())break;const name=await ask('Название нового помещения');if(name&&String(name).trim()){const rooms=(facilityData().rooms||[]).map(x=>({...x}));rooms.push({id:'custom-room-'+Date.now().toString(36),name:String(name).trim().slice(0,100),available:true});upd({facility:{rooms}})}break}
+
 case 'start':if(isHost)doStart();else if(live())pub('h',{t:'start',id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
 case 'peek':peek=t.checked;render();break;
 case 'edit':edit=t.checked;render();break;
@@ -491,8 +554,8 @@ case 'spec':upd({chars:{[i]:{spec:{o:1}}}});break;
 case 'done':upd({chars:{[i]:{spec:{u:1}}}});break;
 case 'vote':myV[R.n]=i;upd({votes:{[R.n]:{[me]:i}}});render();break;
 case 'vend':upd({vdone:{[R.n]:true}});break;
-case 'out':{const left=al().filter(x=>x!==i).length;upd({out:{[i]:true},vdone:{[R.n]:true},phase:R.phase==='vote'?'choose':R.phase,status:left<=R.surv?'end':R.status});break}
-case 'back':upd({out:{[i]:false}});break;
+case 'out':{const left=al().filter(x=>x!==i).length,f=facilityData();upd({out:{[i]:true},facility:{survivors:Math.max(0,(Number(f.survivors)||0)-1)},vdone:{[R.n]:true},phase:R.phase==='vote'?'choose':R.phase,status:left<=R.surv?'end':R.status});break}
+case 'back':{const f=facilityData();upd({out:{[i]:false},facility:{survivors:(Number(f.survivors)||0)+1}});break}
 case 'fin':upd({status:'end'});break;
 case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
 case 'allall':upd({chars:Object.fromEntries(Object.keys(c).map(id=>[id,Object.fromEntries(K.map(([k])=>[k,{o:1}]))]))});break;
@@ -503,7 +566,7 @@ case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name])
 case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
 }}catch(e){S.err='Ошибка: '+(e.message||e.code||e);render()}}
 
-if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,cacheAvailable:(()=>{try{return !!JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null')?.lists}catch(e){return false}})(),seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
+if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,cacheAvailable:(()=>{try{return !!JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null')?.lists}catch(e){return false}})(),facility:R?.facility||null,eventCatalogCount:(R?.eventCatalog||[]).length,activeEvent:R?.activeEvent||null,seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
 document.addEventListener('click',e=>{const t=e.target.closest('button[data-a]');t&&act(t)});
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
 document.addEventListener('change',e=>{const t=e.target.closest('input[data-a],select[data-a]');t&&act(t)});

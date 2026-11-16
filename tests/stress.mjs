@@ -538,12 +538,16 @@ async function scenarioCustomPackFailover() {
     await host.page.locator('#e_story').fill('Проверка передачи пользовательского набора');
     await host.page.locator('textarea[id^="e_"]').evaluateAll(nodes => {
       for (const node of nodes) {
-        if (!['e_story','e_bunkerSize','e_rooms','e_q'].includes(node.id)) node.value = 'CUSTOM-' + node.id;
+        if (!['e_story','e_bunkerSize','e_rooms','e_q','e_events'].includes(node.id)) node.value = 'CUSTOM-' + node.id;
       }
     });
     await host.page.locator('#e_bunkerSize').fill('Усиленный бункер');
     await host.page.locator('#e_rooms').fill('Медблок');
     await host.page.locator('#e_q').fill('Сохранена ли герметичность? [10] | да');
+    await host.page.locator('#e_events').fill('Сигнал из резервного шлюза | В динамике прозвучало короткое сообщение: внешний шлюз отвечает на запрос, но канал нестабилен. | Ведущий: это событие должно сохраниться после смены хоста.');
+    await host.page.locator('#e_capacity').fill('7');
+    await host.page.locator('#e_provisions').fill('125');
+    await host.page.locator('#e_air').fill('92');
     await click(host.page, 'button[data-a=save]');
     await waitBody(host.page, 'Стрессовый пользовательский набор');
     await host.page.locator('#pick').selectOption({ label: 'Стрессовый пользовательский набор' });
@@ -562,13 +566,138 @@ async function scenarioCustomPackFailover() {
     const after = await successor.page.evaluate(() => window.__bunkerTestDebug?.());
     assert(after?.listsAvailable, 'Custom card lists were not restored after host failover');
     assert(after?.gm === successor.uid, 'Failover did not transfer the game-master role');
+    assert(after?.eventCatalogCount === 1, 'Event catalog was lost during host failover');
+    assert(after?.facility?.capacity === 7 && after?.facility?.provisions?.current === 125 && after?.facility?.air?.current === 92, 'Facility counters were lost during host failover');
     await click(successor.page, 'input[data-a=edit]');
     await successor.page.locator('button[data-a=rr]').first().click();
     const finalState = await successor.page.evaluate(() => window.__bunkerTestDebug?.());
     assert(!String(finalState?.error||'').includes('Набор недоступен'), 'Random card edit failed after custom-set failover');
+    const observer = players.slice(1).find(p => p !== successor);
+    await click(successor.page, 'button[data-a=events-toggle]');
+    await click(successor.page, 'button[data-a=event-trigger][data-i="0"]');
+    await waitBody(observer.page, 'Сигнал из резервного шлюза', 15000);
+    await click(successor.page, '.event-overlay button[data-a=event-dismiss]');
+    await observer.page.waitForFunction(() => !document.querySelector('.event-overlay'), null, { timeout: 10000 });
     await closePlayers(players.slice(1));
-    record('custom pack survives host failover and random card editing', 'PASS', {
-      successor: successor.name, customListsRestored: true, randomEdit: 'available', cachedPeers: cacheStates.length,
+    record('custom pack, event catalog and facility counters survive host failover', 'PASS', {
+      successor: successor.name, customListsRestored: true, randomEdit: 'available', eventCatalogRestored: true,
+      facilityCapacity: after.facility.capacity, provisions: after.facility.provisions.current, air: after.facility.air.current, cachedPeers: cacheStates.length,
+    });
+  } catch (error) { await closePlayers(players); throw error; }
+}
+
+
+async function scenarioEventsAndFacility() {
+  const players = await createPlayers(3, 'Hotel');
+  try {
+    const host = players[0];
+    await click(host.page, 'button[data-a=new]');
+    await host.page.locator('#e_name').fill('Тестовый набор событий и ресурсов');
+    await host.page.locator('#e_story').fill('Проверка панели ведущего');
+    await host.page.locator('#e_capacity').fill('6');
+    await host.page.locator('#e_provisions').fill('110');
+    await host.page.locator('#e_air').fill('100');
+    await host.page.locator('#e_rooms').fill('Жилой блок, Душевая, Медпункт');
+    await host.page.locator('#e_events').fill(
+      'Дым в душевой | Из вентиляции душевой повалил густой дым. Автоматика отключила вытяжку в этом секторе. | Ведущий: после решения игроков можно закрыть душевую в списке помещений.\n' +
+      'Повреждение запасов | На складе обнаружены следы грызунов. Часть упаковок продовольствия испорчена. | Ведущий: бросьте кубик отдельно и уменьшите провиант на согласованный процент.'
+    );
+    await click(host.page, 'button[data-a=save]');
+    await waitBody(host.page, 'Тестовый набор событий и ресурсов');
+
+    const downloadPromise = host.page.waitForEvent('download');
+    await click(host.page, 'button[data-a=exp]');
+    const download = await downloadPromise;
+    const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+    assert(exported[0]?.events?.length === 2, 'Export did not preserve preset events');
+    assert(exported[0]?.metrics?.capacity === 6 && exported[0]?.metrics?.provisions === 110, 'Export did not preserve initial metrics');
+    await host.page.locator('input[data-a=imp]').setInputFiles({
+      name: 'events-metrics-roundtrip.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(exported)),
+    });
+    await waitBody(host.page, 'Тестовый набор событий и ресурсов', 10000);
+    assert(!(await bodyText(host.page)).includes('Ошибка:'), 'Import rejected a valid pack with events and metrics');
+
+    await host.page.evaluate(() => localStorage.removeItem('bunker-pack-version'));
+    await host.page.reload({ waitUntil: 'domcontentloaded' });
+    await waitBody(host.page, 'Тестовый набор событий и ресурсов', 15000);
+    const persisted = await host.page.evaluate(() => JSON.parse(localStorage.getItem('bsets') || '[]'));
+    assert(persisted.some(x => x.name === 'Тестовый набор событий и ресурсов'), 'Missing migration marker erased existing custom packs');
+
+    await host.page.locator('#pick').selectOption({ label: 'Тестовый набор событий и ресурсов' });
+    const code = await makeRoom(host);
+    await Promise.all(players.slice(1).map(p => joinRoom(p, code)));
+    await waitForNames(host, players.map(p => p.name), 30000);
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (3)', 30000)));
+    await click(host.page, 'button[data-a=start]');
+    await waitBody(host.page, 'Выберите тему раунда', 20000);
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Ведущий выбирает тему раунда', 20000)));
+
+    await waitBody(players[1].page, '3 / 6');
+    await waitBody(players[2].page, '110% / 100%');
+    await waitBody(players[1].page, 'Душевая');
+
+    await click(host.page, 'button[data-a=events-toggle]');
+    await click(host.page, 'button[data-a=event-trigger][data-i="0"]');
+    await waitBody(players[1].page, 'Дым в душевой');
+    assert(await players[1].page.locator('.event-overlay button[data-a=event-dismiss]').count() === 0,
+      'Guest was incorrectly given the host-only event close control');
+    await click(host.page, '.event-overlay button[data-a=event-dismiss]');
+    await players[1].page.waitForFunction(() => !document.querySelector('.event-overlay'), null, { timeout: 10000 });
+    await players[2].page.waitForFunction(() => !document.querySelector('.event-overlay'), null, { timeout: 10000 });
+
+    await click(host.page, 'button[data-a=custom-event-toggle]');
+    await host.page.locator('#custom_event_title').fill('Разовая тревога');
+    await host.page.locator('#custom_event_text').fill('В коридоре слышны три тяжёлых удара по гермодвери.');
+    await host.page.locator('#custom_event_note').fill('Разовое событие не должно попасть в каталог набора.');
+    await click(host.page, 'button[data-a=event-publish-custom]');
+    await waitBody(players[1].page, 'Разовая тревога');
+    await waitBody(host.page, 'Заметка ведущему: Разовое событие не должно попасть в каталог набора.');
+    assert(!(await bodyText(players[1].page)).includes('Заметка ведущему: Разовое событие не должно попасть в каталог набора.'), 'Host-only note was shown in the player popup');
+    const customState = await host.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(customState?.eventCatalogCount === 2, 'One-off event was incorrectly added to the pack catalog');
+    await click(host.page, '.event-overlay button[data-a=event-dismiss]');
+    await players[1].page.waitForFunction(() => !document.querySelector('.event-overlay'), null, { timeout: 10000 });
+
+    await click(host.page, 'button[data-a=facility-edit]');
+    await host.page.locator('#stat_survivors').fill('8');
+    await host.page.locator('#stat_capacity').fill('6');
+    await host.page.locator('#stat_provisions').fill('110');
+    await host.page.locator('#stat_provisions_normal').fill('100');
+    await host.page.locator('#stat_air').fill('88');
+    await host.page.locator('#stat_air_normal').fill('100');
+    await click(host.page, 'button[data-a=facility-save]');
+    for (const player of players) {
+      await waitBody(player.page, '8 / 6');
+      await waitBody(player.page, '110% / 100%');
+      await waitBody(player.page, '88% / 100%');
+    }
+
+    await click(host.page, 'button[data-a=room-toggle][data-i="1"]');
+    await waitBody(players[1].page, 'Закрыто');
+    await click(host.page, 'button[data-a=room-toggle][data-i="1"]');
+    await waitBody(players[1].page, 'Доступно');
+
+    await click(host.page, 'button[data-a=room-add]');
+    await host.page.locator('#av').fill('Запасной тоннель');
+    await click(host.page, '#ok');
+    await waitBody(players[1].page, 'Запасной тоннель');
+
+    await click(host.page, 'button[data-a=out][data-i="' + players[1].uid + '"]');
+    await waitBody(players[2].page, '7 / 6');
+    await click(host.page, 'button[data-a=back][data-i="' + players[1].uid + '"]');
+    await waitBody(players[2].page, '8 / 6');
+
+    await closePlayers(players);
+    record('pack events, one-off events, synced facility counters and room management', 'PASS', {
+      packEvents: 2,
+      oneOffEventAddedToCatalog: false,
+      sharedCounters: '8 / 6; provisions 110% / 100%; air 88% / 100%',
+      rooms: 'closed, restored and custom room added',
+      survivorCounter: 'decrements on elimination and increments on return',
+      legacyPackMigration: 'existing custom packs preserved without marker',
+      packRoundTrip: 'events and metrics exported/imported',
     });
   } catch (error) { await closePlayers(players); throw error; }
 }
@@ -655,6 +784,7 @@ const scenarios = [
   ['player reload and immediate rejoin', scenarioReloadRejoin],
   ['host failover', scenarioHostFailover],
   ['custom-pack host failover', scenarioCustomPackFailover],
+  ['events, counters and room management', scenarioEventsAndFacility],
   ['real public MQTT connectivity', scenarioPublicMqttSmoke],
 ];
 for (const [name, run] of scenarios) {
