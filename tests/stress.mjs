@@ -641,6 +641,8 @@ async function scenarioEventsAndFacility() {
     await click(host.page, 'button[data-a=events-toggle]');
     await click(host.page, 'button[data-a=event-trigger][data-i="0"]');
     await waitBody(players[1].page, 'Дым в душевой');
+    await waitBody(host.page, 'Заметка ведущему: Ведущий: после решения игроков можно закрыть душевую в списке помещений.');
+    assert(!(await bodyText(players[1].page)).includes('Заметка ведущему: Ведущий: после решения игроков можно закрыть душевую в списке помещений.'), 'Preset event GM note was shown in the player interface');
     assert(await players[1].page.locator('.event-overlay button[data-a=event-dismiss]').count() === 0,
       'Guest was incorrectly given the host-only event close control');
     await click(host.page, '.event-overlay button[data-a=event-dismiss]');
