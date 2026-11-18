@@ -5,6 +5,7 @@ on:
     branches:
       - audit/fix-visual-and-logic-2026-11-16
       - feature/host-events-counters-2026-11-16
+      - feature/lobby-observers-2026-11-18
       - docs/update-rules-and-guides-2026-11-16
   workflow_dispatch:
 
