@@ -409,7 +409,7 @@ async function scenarioKickAndBan() {
   try {
     const kicked = players[2];
     await players[0].page.locator('p.pl').filter({ hasText: kicked.name }).locator('button[data-a=kick]').click();
-    await waitBody(kicked.page, 'Вас нет в списке игроков', 15000);
+    await waitBody(kicked.page, 'Вас нет в списке участников', 15000);
     await click(kicked.page, 'button[data-a=leave]');
     await kicked.page.waitForSelector('#code', { state: 'visible', timeout: 5000 });
     await kicked.page.locator('#code').fill(code);
@@ -446,14 +446,20 @@ async function scenarioObserversAndLateJoin() {
     await click(players[2].page, 'button[data-a=be-observer]');
     await waitBody(host.page, 'Игроки (1)');
     await waitBody(host.page, 'Наблюдатели (1)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 }).catch(async error => {
+      console.log('[OBSERVER ROLE DEBUG]', JSON.stringify({ guest: await players[2].page.evaluate(() => window.__bunkerTestDebug?.()), host: await host.page.evaluate(() => window.__bunkerTestDebug?.()) }));
+      throw error;
+    });
     let role = await players[2].page.evaluate(() => window.__bunkerTestDebug?.());
-    assert(role?.role === 'observer', 'Lobby role switch to observer did not take effect');
+    assert(role?.role === 'observer', 'Lobby role switch to observer did not sync to the requesting client');
 
     await click(players[2].page, 'button[data-a=be-player]');
     await waitBody(host.page, 'Игроки (2)');
     await waitBody(host.page, 'Наблюдатели (0)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'player', null, { timeout: 15000 });
     await click(players[2].page, 'button[data-a=be-observer]');
     await waitBody(host.page, 'Наблюдатели (1)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 });
 
     await click(host.page, 'button[data-a=start]');
     await waitBody(host.page, 'Выберите тему раунда');
@@ -465,6 +471,7 @@ async function scenarioObserversAndLateJoin() {
     await joinRoom(late, code);
     await waitBody(late.page, 'Комната ' + code, 20000);
     await waitBody(late.page, 'Наблюдатели (2)', 20000);
+    await late.page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 });
     const lateState = await late.page.evaluate(() => window.__bunkerTestDebug?.());
     assert(lateState?.role === 'observer', 'A new user joining after start was not automatically assigned observer role');
     assert(lateState.players.length === 2, 'Late joiner was added to the player list');
