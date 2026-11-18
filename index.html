@@ -553,7 +553,7 @@ case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='hom
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
  const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:p,name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[],events:s0.events||[],metrics:s0.metrics||{capacity:6,provisions:100,air:100}};
  const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
- startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
+ startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},observers:{},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
  joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
 case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
