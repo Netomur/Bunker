@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Бункер — онлайн-игра для друзей</title>
-<meta name="description" content="Бункер — бесплатная браузерная игра на выживание: комнаты по коду, 12 характеристик, пользовательские наборы, события ведущего и управление ресурсами убежища. Релиз 1.1.0.">
+<meta name="description" content="Бункер — бесплатная браузерная игра на выживание: комнаты по коду, 12 характеристик, пользовательские наборы, события ведущего, управление ресурсами и режим наблюдателя. Релиз 1.1.1.">
 <meta name="theme-color" content="#79509a">
 <meta name="application-name" content="Бункер">
-<meta name="version" content="1.1.0">
+<meta name="version" content="1.1.1">
 <link rel="canonical" href="https://netomur.github.io/Bunker/">
 <link rel="icon" type="image/png" href="./favicon.png">
 <link rel="apple-touch-icon" href="./favicon.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Бункер — онлайн-игра для друзей">
-<meta property="og:description" content="Бесплатная браузерная игра «Бункер»: события, ресурсы и управление убежищем для компании друзей. Релиз 1.1.0.">
+<meta property="og:description" content="Бесплатная браузерная игра «Бункер»: события, ресурсы и наблюдение за игровыми партиями для компании друзей. Релиз 1.1.1.">
 <meta property="og:url" content="https://netomur.github.io/Bunker/">
 <meta property="og:image" content="https://netomur.github.io/Bunker/banner.jpg">
 <meta property="og:image:alt" content="Баннер онлайн-игры «Бункер»">
@@ -21,7 +21,7 @@
 <meta property="og:image:height" content="525">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Бункер — онлайн-игра для друзей">
-<meta name="twitter:description" content="Бесплатная браузерная игра «Бункер»: события, ресурсы и управление убежищем для компании друзей. Релиз 1.1.0.">
+<meta name="twitter:description" content="Бесплатная браузерная игра «Бункер»: события, ресурсы и управление убежищем для компании друзей. Релиз 1.1.1.">
 <meta name="twitter:image" content="https://netomur.github.io/Bunker/banner.jpg">
 <style>
 :root{--bg:#f1efe8;--fg:#1d1c19;--cd:#fff;--c2:#ece9df;--bd:#d9d5c8;--ac:#c2571a;--on:#fff;--mu:#757166;--ok:#2e7d32;--bad:#c62828;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -126,11 +126,12 @@ th{font-weight:700;letter-spacing:.2px}
 .stat-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
 .stat-edit-grid label{margin:5px 0}
 @media(max-width:640px){.stat-grid{grid-template-columns:1fr}.room-status-list{grid-template-columns:1fr}.event-dialog{padding:18px}.event-choice{flex-direction:column}.event-choice button{align-self:flex-start}.stat-edit-grid{grid-template-columns:1fr}}
+.observer-role{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:var(--c2);color:var(--ac);font-size:12px;font-weight:650}.role-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}.role-column{min-width:0;padding:10px;border:1px solid var(--bd);border-radius:12px;background:var(--c2)}.role-column h3{font-size:15px}.role-column .pl{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px 0;border-bottom:1px solid var(--bd)}.role-column .pl:last-child{border-bottom:0}.role-column .pl button{font-size:12px;padding:5px 8px}.role-switch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.observer-dropdown{margin:0 0 12px;border:1px solid var(--bd);border-radius:12px;background:var(--cd);overflow:hidden}.observer-dropdown summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;cursor:pointer;font-weight:650;list-style:none}.observer-dropdown summary::-webkit-details-marker{display:none}.observer-arrow{transition:transform .15s ease}.observer-dropdown[open] .observer-arrow{transform:rotate(180deg)}.observer-list{padding:4px 14px 10px;border-top:1px solid var(--bd)}.observer-list .pl{margin:7px 0;display:flex;align-items:center;gap:8px}@media(max-width:700px){.role-columns{grid-template-columns:1fr}}
 </style></head><body><div id="app">Загрузка…</div>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';document.head.append(s)"></script>
 <script>
 const DISCORD_CLIENT_ID='1571591321150431262';
-const VER='1.1.0';
+const VER='1.1.1';
 const K=[['gender','Пол'],['race','Раса'],['body','Телосложение'],['trait','Человеческая черта'],['job','Профессия'],['health','Здоровье'],['hobby','Хобби / увлечение'],['fear','Фобия / страх'],['inv1','Крупный инвентарь'],['inv2','Малый инвентарь'],['extra','Доп. сведение'],['spec','Спец. возможность']];
 const DEF={
  id:'standard',
@@ -235,9 +236,11 @@ const RULES=`<div class=rl>
 <h3>Лобби</h3>
 <ul>
 <li>Создатель комнаты становится ведущим и может передать роль любому игроку до начала партии.</li>
-<li>Галочка «Ведущий тоже играет» определяет, получит ли ведущий собственного персонажа.</li>
+<li>Лобби разделено на три списка: <b>Ведущий</b>, <b>Игроки</b> и <b>Наблюдатели</b>. Ведущий управляет партией; игроки получают персонажей и участвуют в раундах; наблюдатели видят состояние комнаты, но не получают игровых действий.</li>
+<li>До начала партии обычный участник может переключаться между ролями игрока и наблюдателя. Ведущий остаётся отдельной ролью; параметр «Ведущий тоже играет» определяет, получает ли он персонажа.</li>
+<li>Все новые подключения после старта автоматически добавляются в наблюдатели. Они видят текущую партию и список наблюдателей, но не могут раскрывать характеристики, голосовать или управлять партией.</li>
 <li>Ведущий задаёт, сколько игроков должно остаться в финале, и может выгнать лишнего или задублированного участника. Выгнанный не сможет вернуться в эту комнату.</li>
-<li>При старте каждому участнику выдаются характеристики. Одновременно выбираются сюжет, размер бункера и планировка помещений. Эти параметры общие для всей партии.</li>
+<li>При старте характеристики выдаются только игрокам. Наблюдатели не входят в число участников партии. Сюжет, размер бункера и планировка помещений общие для всех.</li>
 </ul>
 
 <h3>Характеристики персонажа</h3>
@@ -362,7 +365,8 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const pick=a=>a&&a.length?a[Math.random()*a.length|0]:'—';
 const live=()=>Object.values(NET).includes('ok');
-const upd=d=>{if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',d,id:nextMsgId()})}else{S.err='Нет соединения с серверами связи';render()}};
+const observer=()=>!!(R?.observers&&R.observers[uid]);
+const upd=d=>{if(observer()){S.err='Наблюдатель может только просматривать партию.';render();return}if(isHost){mg(R,d);bc();render()}else if(live()){mg(R,d);render();pub('h',{t:'u',uid,d,id:nextMsgId()})}else{S.err='Нет соединения с серверами связи';render()}};
 const SX={gender:['Возраст','лет',1],body:['Рост','см',1],job:['Мастерство'],hobby:['Мастерство']};
 const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const yrs=n=>{const a=n%100,b=n%10;return n+(a>10&&a<15?' лет':b===1?' год':b>1&&b<5?' года':' лет')};
@@ -400,12 +404,14 @@ function facilityPanel(g){const f=facilityData(),rooms=Array.isArray(f.rooms)?f.
 function hostTools(){if(!gm())return'';const catalog=Array.isArray(R.eventCatalog)?R.eventCatalog:[];let menu='';if(S.eventsOpen){menu='<div class="event-menu"><h3>События из набора</h3>'+(catalog.length?catalog.map((ev,n)=>'<div class="event-choice"><div><b>'+esc(ev.title)+'</b><p>'+esc(ev.text)+'</p>'+(ev.gmNote?'<small>Ведущему: '+esc(ev.gmNote)+'</small>':'')+'</div><button data-a="event-trigger" data-i="'+n+'" '+(R.activeEvent?'disabled':'')+'>Показать</button></div>').join(''):'<p class="mu">В этом наборе пока нет заранее подготовленных событий.</p>')+'<div class="event-actions"><button class="g" data-a="custom-event-toggle" '+(R.activeEvent?'disabled':'')+'>Создать разовое событие</button><button class="g" data-a="events-toggle">Скрыть меню</button></div></div>'}let custom='';if(S.customEventOpen){custom='<div class="custom-event-form"><h3>Разовое событие</h3><label>Заголовок<input id="custom_event_title" maxlength="120" placeholder="Например, тревога в шлюзе"></label><label>Текст для игроков<textarea id="custom_event_text" maxlength="2500" rows="4" placeholder="Что произошло?"></textarea></label><label>Заметка ведущему (необязательно)<textarea id="custom_event_note" maxlength="1500" rows="2" placeholder="Подсказка по последствиям или броску кубика"></textarea></label><div class="event-actions"><button data-a="event-publish-custom">Показать участникам</button><button class="g" data-a="custom-event-cancel">Отмена</button></div></div>'}return '<div class="card"><div class="panel-head"><h3>Панель ведущего</h3><button data-a="events-toggle">События ('+catalog.length+')</button></div><p class="mu">Показанное событие увидят все участники поверх игры. Оно останется на экране, пока ведущий его не закроет.</p>'+(R.activeEvent?'<p class="sp"><b>Сейчас показано:</b> '+esc(R.activeEvent.title)+(R.activeEvent.gmNote?'<small>Заметка ведущему: '+esc(R.activeEvent.gmNote)+'</small>':'')+' <button class="g" data-a="event-dismiss">Закрыть событие</button></p>':'')+menu+custom+'</div>'}
 function eventPopup(g){const ev=R?.activeEvent;if(!ev)return'';return '<div class="event-overlay" role="dialog" aria-modal="true" aria-labelledby="active-event-title"><div class="event-dialog"><span class="eyebrow">СОБЫТИЕ В УБЕЖИЩЕ</span><h2 id="active-event-title">'+esc(ev.title)+'</h2><p class="event-body">'+esc(ev.text)+'</p>'+(g?'<div class="event-actions"><button data-a="event-dismiss">Закрыть событие</button></div>':'<p class="mu">Обсудите произошедшее. Ведущий закроет объявление, когда обсуждение закончится.</p>')+'</div></div>'}
 
-function view(){return{...R,set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
+function view(){return{...R,observers:R.observers||{},set:R.status==='lobby'?R.set:{name:R.set.name,q:R.set.q,bid:R.set.bid},votes:Object.fromEntries(Object.entries(R.votes||{}).map(([n,v])=>[n,R.vdone?.[n]?v:Object.fromEntries(Object.keys(v).map(k=>[k,'?']))]))}}
+function setLobbyRole(user,role){if(!R||R.status!=='lobby'||!user||user===R.gm)return false;R.observers=R.observers||{};const member=R.players?.[user]||R.observers[user];if(!member)return false;if(role==='observer'){delete R.players[user];R.observers[user]=member;return true}if(role==='player'){delete R.observers[user];R.players[user]=member;return true}return false}
+
 function saveRoomSet(code,set){if(!code||!set||!set.lists)return;try{sessionStorage.setItem('bk26-set-'+code,JSON.stringify(set))}catch(e){}}
 function restoreRoomSet(){if(!R||R.set?.lists||!rid)return false;try{const saved=JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null');if(!saved||typeof saved!=='object'||Array.isArray(saved)||saved.bid!==R.set?.bid||saved.name!==R.set?.name||!saved.lists)return false;const lists={};for(const [k] of K){if(!Array.isArray(saved.lists[k])||saved.lists[k].some(v=>typeof v!=='string'))return false;lists[k]=saved.lists[k].slice()}R.set={...R.set,...saved,lists};return true}catch(e){return false}}
 function bc(){R._v=(R._v||0)+1;ls('bh',{code:rid,R});clearTimeout(bt);pub('s',{t:'s',R:view()})}
 function rollKey(k,i){if(!R.set.lists){S.err='Набор недоступен после передачи хоста: 🎲 ничего не меняет';const c=R.chars[i][k];return{v:c.v,h:c.h||''}}const l=R.set.lists[k],p=sp(pick(l&&l.length?l:['—']));return{v:p.v+sfx(R.set,k),h:p.h}}
-function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};if(ids.length<2){S.err='Для начала игры нужны минимум два участника. Проверьте, что в комнате достаточно игроков с учётом настройки «Ведущий тоже играет».';render();return;}
+function doStart(){if(R.status!=='lobby')return;R.observers=R.observers||{};const ids=Object.keys(R.players).filter(x=>x!==R.gm||R.gmPlays),s=R.set,pl={};if(ids.length<2){S.err='Для начала игры нужны минимум два участника. Проверьте, что в комнате достаточно игроков с учётом настройки «Ведущий тоже играет».';render();return;}
  K.forEach(([k])=>pl[k]=shuf(s.lists?.[k]?.length?s.lists[k]:['—']));
  const ch={};ids.forEach((id,n)=>{ch[id]={};K.forEach(([k])=>{{const p=sp(pl[k][n%pl[k].length]);ch[id][k]={v:p.v+sfx(s,k),h:p.h,o:0}}})});
  const story=pick(s.story),env={size:pick(s.bunkerSize||[]),rooms:pick(s.rooms||[])};
@@ -413,7 +419,7 @@ function doStart(){if(R.status!=='lobby')return;const ids=Object.keys(R.players)
 
 function closeNet(){netGeneration++;clearInterval(jt);clearInterval(hbt);clearInterval(mt);clearTimeout(bt);myV={};seen.clear();S.note='';B.forEach(b=>{try{b.c.end(true)}catch(e){}});B=[];NET={};isHost=false}
 const newer=(a,b)=>!b||(a.ep||0)>(b.ep||0)||((a.ep||0)===(b.ep||0)&&(a.hid===b.hid?(a._v||0)>(b._v||0):String(a.hid)<String(b.hid)));
-const resend=()=>{if(R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:nextMsgId()})};
+const resend=()=>{if(!observer()&&R.phase==='vote'&&!R.vdone?.[R.n]&&myV[R.n])pub('h',{t:'u',uid,d:{votes:{[R.n]:{[uid]:myV[R.n]}}},id:nextMsgId()})};
 function stepDown(nr){isHost=false;clearInterval(hbt);B.forEach(b=>{try{b.c.unsubscribe('bk26/'+rid+'/h')}catch(e){}});ls('bh',null);R=nr;S.note='Ведение партии перешло к другому игроку.';resend();render()}
 function takeover(){isHost=true;R.ep=(R.ep||0)+1;const previousHost=R.hid||R.host;if(!R.set?.lists)restoreRoomSet();if(R.gm===previousHost||!R.players[R.gm]||R.out?.[R.gm]){R.gm=uid;if(!R.gmPlays&&R.chars)delete R.chars[uid]}R.hid=uid;
  const bs=BUILTIN.find(x=>x.id===R.set?.bid);if(bs)R.set={...bs,bid:bs.id};
@@ -426,16 +432,19 @@ function onMsg(m){
  if(m.t==='err'){if(m.uid===uid){S.err=m.e;clearInterval(jt);render()}return}
  if(m.t==='s'){lastSt=Date.now();if(m.R?.status==='lobby'&&m.R.set?.lists)saveRoomSet(rid,m.R.set);
   if(isHost){if(m.R.hid!==uid&&newer(m.R,R))stepDown(m.R);return}
-  if(!R||newer(m.R,R)){const f=!R,ne=R&&(m.R.ep||0)>(R.ep||0);R=m.R;clearInterval(jt);if(f)S.scr='room';S.err='';if(ne)resend();render()}
+  if(!R||newer(m.R,R)){const f=!R,ne=R&&(m.R.ep||0)>(R.ep||0);R=m.R;R.observers=R.observers||{};clearInterval(jt);if(f)S.scr='room';S.err='';if(ne)resend();render()}
   return}
  if(!isHost)return;
  if(m.id&&!rememberMsg(m.id))return;
  if(m.t==='join'){if(!/^(?:u[a-z0-9]{1,24}|d[0-9]{1,24})$/.test(m.uid||'')||typeof m.name!=='string'||!m.name.trim())return;if(R.ban?.[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Ведущий исключил вас из комнаты'});return}
-  if(R.status!=='lobby'&&!R.players[m.uid]){pub('s',{t:'err',uid:m.uid,e:'Игра уже идёт'});return}
-  mg(R,{players:{[m.uid]:{name:m.name.trim().slice(0,32),av:m.av||''}}});bc();render()}
- else if(m.t==='u'){mg(R,m.d);bc();render()}
- else if(m.t==='start')doStart();
- else if(m.t==='rr'){mg(R,{chars:{[m.i]:{[m.k]:rollKey(m.k,m.i)}}});bc();render()}}
+  R.observers=R.observers||{};const member={name:m.name.trim().slice(0,32),av:m.av||''};
+  if(R.players[m.uid])R.players[m.uid]=member;else if(R.observers[m.uid])R.observers[m.uid]=member;else if(R.status==='lobby')R.players[m.uid]=member;else R.observers[m.uid]=member;
+  bc();render()}
+ else if(m.t==='role'){if(setLobbyRole(m.uid,m.role)){bc();render()}}
+ else if(m.t==='u'){if(!m.uid||(m.uid!==R.gm&&!R.players[m.uid])||R.observers?.[m.uid])return;mg(R,m.d);bc();render()}
+ else if(m.t==='start'){if(m.uid===R.gm)doStart()}
+ else if(m.t==='rr'){if(m.uid!==R.gm)return;mg(R,{chars:{[m.i]:{[m.k]:rollKey(m.k,m.i)}}});bc();render()}}
+
 function net(code,first){if(!window.mqtt){S.err='Не загрузилась библиотека связи: проверьте интернет и обновите страницу';render();return false}
  const generation=netGeneration;rid=code;
  B=BR.map(([n,u])=>{NET[n]='…';const c=mqtt.connect(u,{clientId:'bk'+uid+Math.random().toString(36).slice(2,6),connectTimeout:15000,reconnectPeriod:3000});
@@ -482,16 +491,23 @@ function endPanel(g){
  <h3>Вопросы ведущему</h3>${qs.map((x,i)=>{const w=weight(x);return `<p class="final-question"><span class="q-weight ${w>=10?'q-critical':''}">[${w}]</span> ${esc(x.t)} ${g?`<button class="${an[i]==='y'?'on':'g'}" data-a=ans data-i=${i} data-k=y>Да</button><button class="${an[i]==='n'?'on':'g'}" data-a=ans data-i=${i} data-k=n>Нет</button>`:`<b>${an[i]==='y'?'Да':an[i]==='n'?'Нет':'…'}</b>`}</p>`}).join('')||'<p class=mu>Вопросов в наборе нет</p>'}
  ${done&&qs.length?`<div class="scorebox ${ok?'score-ok':'score-bad'}"><p class=v>${ok?'Выжившие справились!':'Выжившие не справились.'}</p><p><b>Итоговая оценка: ${score}%</b> (${earned} из ${total} весовых баллов).</p><p class=mu>Для выживания нужно набрать не менее 70%. Вопросы с приоритетом 10 являются критическими и обязательными.</p></div>${bad.length?`<p class=mu>Не выполнено: ${esc(bad.join('; '))}</p>`:''}`:''}</div>`}
 
+function observerList(){const ids=Object.keys(R.observers||{});return '<details class="observer-dropdown"><summary><span>Наблюдатели ('+ids.length+')</span><span class="observer-arrow" aria-hidden="true">▾</span></summary><div class="observer-list">'+(ids.length?ids.map(i=>'<p class=pl>'+av(R.observers[i])+esc(R.observers[i].name)+'</p>').join(''):'<p class=mu>Пока никого нет.</p>')+'</div></details>'}
+
 function game(){const g=gm(),end=R.status==='end';
  const sp=Object.keys(R.chars).filter(i=>R.chars[i].spec.o&&!R.chars[i].spec.u).map(i=>'<div class=sp>⚡ <b>'+esc(R.players[i].name)+'</b> активирует способность: '+esc(R.chars[i].spec.v)+' '+(g?'<button data-a=done data-i="'+esc(i)+'">Выполнено</button>':'')+'</div>').join('');
- return '<div class=card><b>Сюжет:</b> '+esc(R.story)+'<div class=env-grid><div class=env-item><span>РАЗМЕР БУНКЕРА</span><b>'+esc(R.env?.size||'—')+'</b></div><div class=env-item><span>ПЛАНИРОВКА И ПОМЕЩЕНИЯ</span><b>'+esc(R.env?.rooms||'—')+'</b></div></div><span class=mu>Цель: выжить должны '+R.surv+'</span></div>'+
+ return observerList()+'<div class=card><b>Сюжет:</b> '+esc(R.story)+'<div class=env-grid><div class=env-item><span>РАЗМЕР БУНКЕРА</span><b>'+esc(R.env?.size||'—')+'</b></div><div class=env-item><span>ПЛАНИРОВКА И ПОМЕЩЕНИЯ</span><b>'+esc(R.env?.rooms||'—')+'</b></div></div><span class=mu>Цель: выжить должны '+R.surv+'</span></div>'+
  facilityPanel(g)+(g?hostTools():'')+(end?'':'<div class="card ban">'+banner(g)+'</div>')+sp+
  (g?'<p><label style="display:inline"><input type=checkbox data-a=peek '+(peek?'checked':'')+'>Подсмотреть скрытое</label> <label style="display:inline"><input type=checkbox data-a=edit '+(edit?'checked':'')+'>Режим правок (🎲 случайное, ✎ вручную, ⇄ обмен, 👁 открыть/скрыть)</label> '+(end?'':'<button class=g data-a=fin>Завершить игру</button>')+'</p>':'')+
  table()+(end?endPanel(g):'')+eventPopup(g)}
 
-function lobby(){const g=gm(),ids=Object.keys(R.players);
- return `<div class=card><h3>Игроки (${ids.length})</h3>${ids.map(i=>`<p class=pl>${av(R.players[i])}${esc(R.players[i].name)}${i===R.gm?' 🎙 ведущий':''} ${g&&i!==R.gm?`<button class=g data-a=setgm data-i="${esc(i)}">Сделать ведущим</button><button class=g data-a=kick data-i="${esc(i)}">Выгнать</button>`:''}</p>`).join('')}
- <p class=mu>Код комнаты <b>${esc(rid)}</b> — друзья вводят его на главной странице.</p>
+function lobby(){const g=gm(),players=Object.keys(R.players||{}).filter(i=>i!==R.gm),observers=Object.keys(R.observers||{}),host=R.players?.[R.gm];
+ const gmRow=host?`<p class=pl>${av(host)}${esc(host.name)} 🎙 ведущий${R.gmPlays?' · участвует в игре':' · не участвует в игре'}</p>`:'<p class=mu>Ведущий не назначен.</p>';
+ const playerRows=players.map(i=>`<p class=pl>${av(R.players[i])}${esc(R.players[i].name)}${i===uid?' (вы)':''} ${g?`<button class=g data-a=setgm data-i="${esc(i)}">Сделать ведущим</button><button class=g data-a=kick data-i="${esc(i)}">Выгнать</button>`:''}</p>`).join('')||'<p class=mu>Пока нет игроков.</p>';
+ const observerRows=observers.map(i=>`<p class=pl>${av(R.observers[i])}${esc(R.observers[i].name)}${i===uid?' (вы)':''} ${g?`<button class=g data-a=kick-observer data-i="${esc(i)}">Выгнать</button>`:''}</p>`).join('')||'<p class=mu>Пока нет наблюдателей.</p>';
+ const roleAction=!g?(observer()?'<button class=g data-a=be-player>Стать игроком</button>':'<button class=g data-a=be-observer>Стать наблюдателем</button>'):'';
+ return `<div class=card><div class="role-columns"><section class="role-column"><h3>Ведущий (1)</h3>${gmRow}</section><section class="role-column"><h3>Игроки (${players.length})</h3>${playerRows}</section><section class="role-column"><h3>Наблюдатели (${observers.length})</h3>${observerRows}</section></div>
+ <p class=mu>Код комнаты <b>${esc(rid)}</b> — друзья вводят его на главной странице. Подключившиеся после начала партии автоматически попадают в наблюдатели.</p>
+ ${roleAction?'<div class="role-switch">'+roleAction+' <span class=mu>Роль можно менять до начала игры.</span></div>':''}
  <label><input type=checkbox data-a=gmp ${R.gmPlays?'checked':''} ${g?'':'disabled'}>Ведущий тоже играет</label>
  <label>Сколько должно остаться в финале <input type=number min=1 value="${esc(R.surv)}" data-a=surv ${g?'':'disabled'}></label>
  <p class=mu>Набор: ${esc(R.set.name)}</p>${g?'<button data-a=start>Начать игру</button>':'<p>Ждём, пока ведущий начнёт…</p>'}</div>`}
@@ -499,8 +515,8 @@ function lobby(){const g=gm(),ids=Object.keys(R.players);
 function privacyNotice(){return `<div class="privacy-notice" role="note"><b>Важно о данных и приватности</b><p>Не вводите реальные персональные сведения, пароли, документы, медицинские или финансовые данные. Игровые сообщения проходят через публичные сторонние MQTT-сервисы и не являются приватными.</p><a href="https://github.com/Netomur/Bunker/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Что хранится, куда передаются данные и какие действуют ограничения →</a></div>`}
 
 function room(){if(!R)return `<p>${S.err?'':'Загрузка…'} <button class=g data-a=leave>На главную</button></p>`;
- if(!R.players[uid])return `<div class=card><h3>Вас нет в списке игроков</h3><p>Возможно, ведущий исключил вас из комнаты.</p><button data-a=leave>На главную</button></div>`;
- return `<div class=top><b><span class=lg></span> Комната ${esc(rid)}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${esc(R.players[R.hid||R.host]?.name||'—')}</span><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+privacyNotice()+(R.status==='lobby'?lobby():game())}
+ if(!R.players?.[uid]&&!R.observers?.[uid])return `<div class=card><h3>Вас нет в списке участников</h3><p>Возможно, ведущий исключил вас из комнаты.</p><button data-a=leave>На главную</button></div>`;
+ return `<div class=top><b><span class=lg></span> Комната ${esc(rid)}</b><span class=mu>Ведущий: ${av(R.players[R.gm])}${esc(R.players[R.gm]?.name)}</span><span class=mu>Хост: ${av(R.players[R.hid||R.host])}${esc(R.players[R.hid||R.host]?.name||R.observers?.[R.hid||R.host]?.name||'—')}</span>${observer()?'<span class=observer-role>Наблюдатель</span>':''}<button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=leave>Выйти</button></div>`+privacyNotice()+(R.status==='lobby'?lobby():game())}
 
 function home(){return `<div class=hero role=img aria-label="Бункер: играй, выживай, побеждай"></div><div class="card home-head"><div class=home-headline><div><span class=eyebrow>ПОСЛЕДНЕЕ УБЕЖИЩЕ</span><h1 style="margin:0"><span class=lg></span> Бункер</h1></div><div class=home-tools><button class=g data-a=info>ℹ️ Правила</button><button class=g data-a=sett>⚙️ Настройки</button></div></div><p class=home-lead>Мест меньше, чем желающих. Соберите команду, раскройте карты и докажите, что именно вы заслужили место внутри.</p>${S.dc?`<p class=pl>${av(S.dc)}<b>${esc(S.dc.name)}</b> <span class=mu>(Discord)</span> <button class=g data-a=dcout>Выйти из Discord</button></p>`:`<label>Ваше имя<input id=name maxlength=32 value="${esc(S.name)}"></label>${DISCORD_CLIENT_ID?'<p><button data-a=dclogin>Войти через Discord</button> <span class=mu>ник и аватар подтянутся сами</span></p>':''}`}</div>
 ${privacyNotice()}
@@ -523,6 +539,7 @@ K.map(([k,n])=>'<label>'+n+'<textarea id=e_'+k+' rows=4>'+esc(e.lists[k]||'')+'<
 function render(){const v=S.scr==='home'?home():S.scr==='ed'?editor():S.scr==='info'?info():S.scr==='sett'?sett():room();$.className=S.scr==='room'&&R&&R.status!=='lobby'?'wide':'';tip.style.display='none';$.innerHTML=(S.note?`<p class="card ban">${esc(S.note)}</p>`:'')+(S.err?`<p class=err>${esc(S.err)}</p>`:'')+netTxt()+v}
 
 async function act(t){const a=t.dataset.a,i=t.dataset.i,k=t.dataset.k,c=R&&R.chars,me=uid;S.err='';
+if(observer()&&!['home','leave','info','back2','be-player'].includes(a)){S.err='Наблюдателю доступен только просмотр партии.';render();return}
 try{switch(a){
 case 'home':S.scr='home';S.err='';render();break;
 case 'leave':closeNet();R=null;S.scr='home';render();break;
@@ -536,7 +553,7 @@ case 'delset':ls('bsets',(ls('bsets')||[]).filter(x=>x.id!==S.ed.id));S.scr='hom
 case 'create':{if(!S.name.trim()){S.err='Введите имя';return render()}
  const p=$.querySelector('#pick').value,s0=[...BUILTIN,...S.sets].find(x=>x.id===p),s={bid:p,name:s0.name,story:s0.story,lists:s0.lists,sx:s0.sx||{},q:s0.q||[],bunkerSize:s0.bunkerSize||[],rooms:s0.rooms||[],events:s0.events||[],metrics:s0.metrics||{capacity:6,provisions:100,air:100}};
  const code=Array.from({length:6},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random()*32|0]).join('');rid=code;
- startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
+ startHost(code,{host:me,hid:me,ep:0,gm:me,gmPlays:true,status:'lobby',surv:2,set:s,players:{[me]:{name:S.name.trim().slice(0,32),av:S.dc?.av||''}},observers:{},chars:{},out:{},shown:{},votes:{},ans:{},n:0,phase:'choose'});break}
 case 'join':{if(!S.name.trim()){S.err='Введите имя';return render()}
  joinRoom($.querySelector('#code').value.trim().toUpperCase());break}
 case 'exp':{const b=new Blob([JSON.stringify(S.sets)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='bunker-sets.json';l.click();break}
@@ -549,6 +566,9 @@ case 'th':ST.th=k;saveST();render();break;
 case 'tf':ST.tf=+k;saveST();render();break;
 case 'rst':ST.ac='';ST.th='auto';ST.tf=13;saveST();render();break;
 case 'kick':upd({players:{[i]:null},ban:{[i]:true}});break;
+case 'kick-observer':if(!gm())break;upd({observers:{[i]:null},ban:{[i]:true}});break;
+case 'be-observer':{if(!R||R.status!=='lobby'||gm()||!R.players[uid])break;if(isHost){if(setLobbyRole(uid,'observer')){bc();render()}}else if(live())pub('h',{t:'role',uid,role:'observer',id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break}
+case 'be-player':{if(!R||R.status!=='lobby'||gm()||!R.observers?.[uid])break;if(isHost){if(setLobbyRole(uid,'player')){bc();render()}}else if(live())pub('h',{t:'role',uid,role:'player',id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break}
 case 'dclogin':location.href='https://discord.com/oauth2/authorize?client_id='+DISCORD_CLIENT_ID+'&response_type=token&scope=identify&redirect_uri='+encodeURIComponent(location.origin+location.pathname);break;
 case 'dcout':ls('bdc',null);S.dc=null;S.name='';uid=ls('bu');render();break;
 case 'setgm':upd({gm:i});break;
@@ -566,7 +586,7 @@ case 'facility-save':{if(!gm())break;const val=id=>Number($.querySelector('#'+id
 case 'room-toggle':{if(!gm())break;const rooms=(facilityData().rooms||[]).map(x=>({...x})),idx=Number(i);if(!Number.isInteger(idx)||!rooms[idx])break;rooms[idx].available=!rooms[idx].available;upd({facility:{rooms}});break}
 case 'room-add':{if(!gm())break;const name=await ask('Название нового помещения');if(name&&String(name).trim()){const rooms=(facilityData().rooms||[]).map(x=>({...x}));rooms.push({id:'custom-room-'+Date.now().toString(36),name:String(name).trim().slice(0,100),available:true});upd({facility:{rooms}})}break}
 
-case 'start':if(isHost)doStart();else if(live())pub('h',{t:'start',id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'start':if(!gm())break;if(isHost)doStart();else if(live())pub('h',{t:'start',uid,id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
 case 'peek':peek=t.checked;render();break;
 case 'edit':edit=t.checked;render();break;
 case 'ph':upd({phase:k,n:R.n+1});break;
@@ -583,13 +603,13 @@ case 'fin':upd({status:'end'});break;
 case 'all':upd({chars:{[me]:Object.fromEntries(K.map(([k])=>[k,{o:1}]))}});break;
 case 'allall':upd({chars:Object.fromEntries(Object.keys(c).map(id=>[id,Object.fromEntries(K.map(([k])=>[k,{o:1}]))]))});break;
 case 'ans':upd({ans:{[i]:k}});break;
-case 'rr':if(isHost)upd({chars:{[i]:{[k]:rollKey(k,i)}}});else if(live())pub('h',{t:'rr',i,k,id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
+case 'rr':if(!gm())break;if(isHost)upd({chars:{[i]:{[k]:rollKey(k,i)}}});else if(live())pub('h',{t:'rr',uid,i,k,id:nextMsgId()});else{S.err='Нет соединения с серверами связи';render()}break;
 case 'ed':{const v=await ask('Новое значение (подсказку пишите в [ ])',c[i][k].v+(c[i][k].h?' ['+c[i][k].h+']':''));if(v!==null){const p=sp(v);upd({chars:{[i]:{[k]:{v:p.v,h:p.h}}}})}break}
 case 'sw':{const o=Object.keys(c).filter(x=>x!==i).map(x=>[x,R.players[x].name]);if(!o.length)break;const j=await ask('Поменять местами с игроком:',0,o);if(j)upd({chars:{[i]:{[k]:{v:c[j][k].v,h:c[j][k].h||''}},[j]:{[k]:{v:c[i][k].v,h:c[i][k].h||''}}}});break}
 case 'tg':upd({chars:{[i]:{[k]:{o:c[i][k].o?0:1}}}});break;
 }}catch(e){S.err='Ошибка: '+(e.message||e.code||e);render()}}
 
-if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,players:Object.keys(R?.players||{}),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,cacheAvailable:(()=>{try{return !!JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null')?.lists}catch(e){return false}})(),facility:R?.facility||null,eventCatalogCount:(R?.eventCatalog||[]).length,activeEvent:R?.activeEvent||null,seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
+if(window.__bunkerTestMode===true){window.__bunkerTestDebug=()=>({uid,isHost,room:rid,status:R?.status||null,gm:R?.gm||null,hid:R?.hid||null,role:R?.observers?.[uid]?'observer':R?.gm===uid?'host':R?.players?.[uid]?'player':'none',players:Object.keys(R?.players||{}),observers:Object.keys(R?.observers||{}),out:R?.out||{},testPublishToHost:(payload)=>pub('h',payload),banned:!!R?.ban?.[uid],listsAvailable:!!R?.set?.lists,cacheAvailable:(()=>{try{return !!JSON.parse(sessionStorage.getItem('bk26-set-'+rid)||'null')?.lists}catch(e){return false}})(),facility:R?.facility||null,eventCatalogCount:(R?.eventCatalog||[]).length,activeEvent:R?.activeEvent||null,seen:[...seen].slice(-40),sent:sn,screen:S.scr,error:S.err,net:{...NET}})}
 document.addEventListener('click',e=>{const t=e.target.closest('button[data-a]');t&&act(t)});
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
 document.addEventListener('change',e=>{const t=e.target.closest('input[data-a],select[data-a]');t&&act(t)});

@@ -248,7 +248,7 @@ async function scenarioNormalGameAndRecovery() {
 
     await click(players[0].page, 'button[data-a=start]');
     await waitBody(players[0].page, 'нужны минимум два участника');
-    assert((await bodyText(players[0].page)).includes('Игроки (1)'), 'Solo host left the lobby');
+    assert((await bodyText(players[0].page)).includes('Игроки (0)') && (await bodyText(players[0].page)).includes('Ведущий (1)'), 'Solo host left the lobby');
 
     await Promise.all(players.slice(1).map((p) => joinRoom(p, code)));
     await waitForNames(players[0], players.map((p) => p.name), 30000);
@@ -409,7 +409,7 @@ async function scenarioKickAndBan() {
   try {
     const kicked = players[2];
     await players[0].page.locator('p.pl').filter({ hasText: kicked.name }).locator('button[data-a=kick]').click();
-    await waitBody(kicked.page, 'Вас нет в списке игроков', 15000);
+    await waitBody(kicked.page, 'Вас нет в списке участников', 15000);
     await click(kicked.page, 'button[data-a=leave]');
     await kicked.page.waitForSelector('#code', { state: 'visible', timeout: 5000 });
     await kicked.page.locator('#code').fill(code);
@@ -430,6 +430,91 @@ async function scenarioKickAndBan() {
     record('kick and rejoin ban', 'PASS', { kickedPlayer: kicked.name, rejoin: 'rejected', code, guestError: guestDebug.error });
   } catch (error) { await closePlayers(players); throw error; }
 }
+async function scenarioObserversAndLateJoin() {
+  const players = await createPlayers(3, 'Juliet');
+  const late = await newPlayer('JulietLate', 'ujulietlate');
+  const all = [...players, late];
+  try {
+    const host = players[0];
+    const code = await makeRoom(host);
+    await Promise.all(players.slice(1).map(p => joinRoom(p, code)));
+    await waitForNames(host, players.map(p => p.name), 20000);
+    await waitBody(host.page, 'Ведущий (1)');
+    await waitBody(host.page, 'Игроки (2)');
+    await waitBody(host.page, 'Наблюдатели (0)');
+
+    await click(players[2].page, 'button[data-a=be-observer]');
+    await waitBody(host.page, 'Игроки (1)');
+    await waitBody(host.page, 'Наблюдатели (1)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 }).catch(async error => {
+      console.log('[OBSERVER ROLE DEBUG]', JSON.stringify({ guest: await players[2].page.evaluate(() => window.__bunkerTestDebug?.()), host: await host.page.evaluate(() => window.__bunkerTestDebug?.()) }));
+      throw error;
+    });
+    let role = await players[2].page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(role?.role === 'observer', 'Lobby role switch to observer did not sync to the requesting client');
+
+    await click(players[2].page, 'button[data-a=be-player]');
+    await waitBody(host.page, 'Игроки (2)');
+    await waitBody(host.page, 'Наблюдатели (0)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'player', null, { timeout: 15000 });
+    await click(players[2].page, 'button[data-a=be-observer]');
+    await waitBody(host.page, 'Наблюдатели (1)');
+    await players[2].page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 });
+
+    await click(host.page, 'button[data-a=start]');
+    await waitBody(host.page, 'Выберите тему раунда');
+    await waitBody(players[2].page, 'Ведущий выбирает тему раунда');
+    const lobbyObserver = await players[2].page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(lobbyObserver?.role === 'observer', 'Lobby observer did not remain a spectator after game start');
+    assert(lobbyObserver.players.length === 2, 'Observer was accidentally included in active player membership');
+
+    await joinRoom(late, code);
+    await waitBody(late.page, 'Комната ' + code, 20000);
+    await waitBody(late.page, 'Наблюдатели (2)', 20000);
+    await late.page.waitForFunction(() => window.__bunkerTestDebug?.().role === 'observer', null, { timeout: 15000 });
+    const lateState = await late.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(lateState?.role === 'observer', 'A new user joining after start was not automatically assigned observer role');
+    assert(lateState.players.length === 2, 'Late joiner was added to the player list');
+    assert(await late.page.locator('details.observer-dropdown').count() === 1, 'Observer dropdown was not rendered');
+    assert(!(await late.page.locator('details.observer-dropdown').evaluate(el => el.open)), 'Observer dropdown should be collapsed by default');
+    await late.page.locator('details.observer-dropdown summary').click();
+    await waitBody(late.page, 'Juliet02');
+    assert((await bodyText(late.page)).includes('JulietLate'), 'Expanded observer list did not show the late joiner');
+
+    await click(host.page, 'button[data-a=ph][data-k=reveal]');
+    await waitBody(players[1].page, 'Показ характеристик');
+    assert(await players[1].page.locator('button[data-a=rev]').count() > 0, 'Active player lost reveal controls');
+    for (const p of [players[2], late]) {
+      const forbidden = await p.page.locator('button[data-a=rev],button[data-a=vote],button[data-a=spec],button[data-a=ph],button[data-a=out],button[data-a=fin]').count();
+      assert(forbidden === 0, 'Observer received interactive game controls: ' + p.name + ' (' + forbidden + ')');
+    }
+
+    const targetUid = players[1].uid;
+    await late.page.evaluate((target) => {
+      const d = window.__bunkerTestDebug?.();
+      d?.testPublishToHost?.({ t: 'u', uid: d.uid, d: { out: { [target]: true } } });
+    }, targetUid);
+    await host.page.waitForTimeout(500);
+    const hostAfterForgedUpdate = await host.page.evaluate(() => window.__bunkerTestDebug?.());
+    assert(!hostAfterForgedUpdate?.out?.[targetUid], 'Host accepted a game-state update sent by an observer');
+
+    await closePlayers(all);
+    record('lobby roles, observer read-only view and automatic late-join spectator assignment', 'PASS', {
+      room: code,
+      lobbyRoleSwitch: 'player ↔ observer',
+      lateJoinRole: 'observer',
+      activePlayers: lobbyObserver.players.length,
+      observers: lateState.observers.length,
+      dropdown: 'collapsed by default and expandable',
+      observerControls: 'none',
+      forgedObserverUpdate: 'rejected by host',
+    });
+  } catch (error) {
+    await closePlayers(all);
+    throw error;
+  }
+}
+
 async function scenarioImportValidation() {
   const player = await newPlayer('ImportTester', 'uimport001');
   try {
@@ -554,7 +639,7 @@ async function scenarioCustomPackFailover() {
     const code = await makeRoom(host);
     await Promise.all(players.slice(1).map(p => joinRoom(p, code)));
     await waitForNames(host, players.map(p => p.name), 30000);
-    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (3)', 30000)));
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (2)', 30000)));
     await click(host.page, 'button[data-a=start]');
     await waitBody(host.page, 'Выберите тему раунда', 20000);
     await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Ведущий выбирает тему раунда', 20000)));
@@ -629,7 +714,7 @@ async function scenarioEventsAndFacility() {
     const code = await makeRoom(host);
     await Promise.all(players.slice(1).map(p => joinRoom(p, code)));
     await waitForNames(host, players.map(p => p.name), 30000);
-    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (3)', 30000)));
+    await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Игроки (2)', 30000)));
     await click(host.page, 'button[data-a=start]');
     await waitBody(host.page, 'Выберите тему раунда', 20000);
     await Promise.all(players.slice(1).map(p => waitBody(p.page, 'Ведущий выбирает тему раунда', 20000)));
@@ -782,6 +867,7 @@ const scenarios = [
   ['twelve-player concurrency stress', scenarioTwelvePlayerStress],
   ['two concurrent independent rooms', scenarioConcurrentRoomIsolation],
   ['kick and ban', scenarioKickAndBan],
+  ['lobby roles, observer view and late-join spectators', scenarioObserversAndLateJoin],
   ['custom pack import/export', scenarioImportValidation],
   ['player reload and immediate rejoin', scenarioReloadRejoin],
   ['host failover', scenarioHostFailover],
